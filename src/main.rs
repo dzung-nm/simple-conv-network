@@ -1,16 +1,5 @@
-extern crate blas_src;
-
-mod box_muller;
-mod load_mnist;
-mod sigmoid;
-mod unzip;
-mod utils;
-
-pub mod network;
-
-use crate::load_mnist::MnistData;
-use crate::network::*;
-use load_mnist::load_mnist;
+use mnist_conv_rust::network::*;
+use mnist_conv_rust::load_mnist::{load_mnist, MnistData};
 
 fn main() {
     let training_params = TrainingParams {
