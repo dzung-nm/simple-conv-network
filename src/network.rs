@@ -110,7 +110,7 @@ impl Network {
         }
     }
 
-    pub fn back_propagate(
+    fn back_propagate(
         &self,
         x: &Array2<f64>,
         y: &Array2<f64>,
@@ -157,7 +157,7 @@ impl Network {
         }
     }
 
-    pub fn update_mini_batch(
+    fn update_mini_batch(
         &mut self,
         mini_batch: &Vec<&TrainingItem>,
         training_data_size: usize,
