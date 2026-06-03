@@ -20,27 +20,23 @@ pub enum WeightInitMethods {
     He,
 }
 
-#[derive(Debug)]
-pub struct TrainingParams {
+pub struct NetworkOptions {
+    pub sizes: Vec<usize>,
+    pub cost_function: CostFunctions,
+    pub weight_init_method: WeightInitMethods,
     pub max_epochs: usize,
     pub mini_batch_size: usize,
     pub eta: f64,
     pub regularization_l1: Option<f64>,
     pub regularization_l2: Option<f64>,
     pub stop_early: bool,
-    pub stop_early_patience: Option<usize>,
-    pub stop_early_min_delta: Option<f64>,
-}
-
-pub struct NetworkOptions {
-    pub sizes: Vec<usize>,
-    pub cost_function: CostFunctions,
-    pub weight_init_method: WeightInitMethods,
-    pub training_params: TrainingParams,
+    pub stop_early_patience: usize,
+    pub stop_early_min_delta: f64,
 }
 
 pub struct Network {
     pub options: NetworkOptions,
+
     weights: Vec<Array2<f64>>,
     biases: Vec<Array2<f64>>,
     num_layers: usize,
@@ -144,9 +140,9 @@ impl Network {
         mini_batch: &Vec<&TrainingItem>,
         training_data_size: usize,
     ) {
-        let eta = self.options.training_params.eta;
-        let r_l1 = self.options.training_params.regularization_l1;
-        let r_l2 = self.options.training_params.regularization_l2;
+        let eta = self.options.eta;
+        let r_l1 = self.options.regularization_l1;
+        let r_l2 = self.options.regularization_l2;
 
         let mut nabla_b = create_zero_copy(&self.biases);
         let mut nabla_w = create_zero_copy(&self.weights);
@@ -261,16 +257,8 @@ impl Network {
     }
 
     fn should_stop_early(&self, accuracies: &Vec<f64>) -> bool {
-        let patience = self
-            .options
-            .training_params
-            .stop_early_patience
-            .unwrap_or_else(|| 20);
-        let min_delta = self
-            .options
-            .training_params
-            .stop_early_min_delta
-            .unwrap_or_else(|| 0.1);
+        let patience = self.options.stop_early_patience;
+        let min_delta = self.options.stop_early_min_delta;
 
         if accuracies.len() <= patience {
             return false;
@@ -295,10 +283,9 @@ impl Network {
     }
 
     pub fn sdg(&mut self, data: &MnistData) {
-        let training_params = &self.options.training_params;
-        let max_epochs = training_params.max_epochs;
-        let mini_batch_size = training_params.mini_batch_size;
-        let stop_early = training_params.stop_early;
+        let max_epochs = self.options.max_epochs;
+        let mini_batch_size = self.options.mini_batch_size;
+        let stop_early = self.options.stop_early;
 
         let training_data = &data.training;
         let training_data_size = training_data.len();
@@ -317,7 +304,10 @@ impl Network {
             let mini_batches = indices
                 .chunks_exact(mini_batch_size)
                 .map(|indices_batch| {
-                    indices_batch.iter().map(|&i| &training_data[i]).collect::<Vec<_>>()
+                    indices_batch
+                        .iter()
+                        .map(|&i| &training_data[i])
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>();
 
