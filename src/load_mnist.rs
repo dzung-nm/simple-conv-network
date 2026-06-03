@@ -4,6 +4,8 @@ use std::io::Read;
 use byteorder::{LittleEndian, ByteOrder};
 use ndarray::{Array2, Array1};
 
+use mnist_conv_rust::types::{TrainingItem, TestItem, Dataset};
+
 use crate::unzip::unzip;
 
 // Assure that you can see this folder.
@@ -82,16 +84,7 @@ fn one_hot_label(label: u8) -> Array2<f64> {
     one_hot
 }
 
-pub struct TrainingItem(pub(crate) Array2<f64>, pub(crate) Array2<f64>); // (image (784,1), one-hot label (10,1))
-pub struct TestItem(pub(crate) Array2<f64>, pub(crate) u8); // (image (784,1), label)
-
-pub struct MnistData {
-    pub training: Vec<TrainingItem>,
-    pub validation: Vec<TestItem>,
-    pub test: Vec<TestItem>,
-}
-
-pub fn load_mnist() -> std::io::Result<MnistData> {
+pub fn load_mnist() -> std::io::Result<Dataset> {
     let data_files = [
         format!("{}/train-images.bin", DATA_DIR),
         format!("{}/train-labels.bin", DATA_DIR),
@@ -136,7 +129,7 @@ pub fn load_mnist() -> std::io::Result<MnistData> {
         })
         .collect();
 
-    Ok(MnistData { training: training_formatted, validation: validation_formatted, test: test_formatted })
+    Ok(Dataset { training: training_formatted, validation: validation_formatted, test: test_formatted })
 }
 
 #[cfg(test)]

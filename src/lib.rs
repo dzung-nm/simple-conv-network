@@ -2,11 +2,10 @@ extern crate blas_src;
 
 mod box_muller;
 mod sigmoid;
-mod unzip;
 mod utils;
 
+pub mod types;
 pub mod network;
-pub mod load_mnist;
 
 // Suppress panic output for all tests
 #[cfg(test)]

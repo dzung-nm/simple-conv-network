@@ -3,8 +3,8 @@ use rand::seq::SliceRandom;
 use std::time::Instant;
 
 use crate::box_muller::box_muller_random;
-use crate::load_mnist::*;
 use crate::sigmoid::{sigmoid, sigmoid_prime};
+use crate::types::{Dataset, TestItem, TrainingItem};
 use crate::utils::{arr_max, create_zero_copy};
 
 #[derive(Debug)]
@@ -157,11 +157,7 @@ impl Network {
         }
     }
 
-    fn update_mini_batch(
-        &mut self,
-        mini_batch: &Vec<&TrainingItem>,
-        training_data_size: usize,
-    ) {
+    fn update_mini_batch(&mut self, mini_batch: &Vec<&TrainingItem>, training_data_size: usize) {
         let eta = self.options.eta;
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
@@ -239,7 +235,7 @@ impl Network {
             .count()
     }
 
-    fn calculate_accuracy_and_log(&mut self, epoch: usize, time_taken: f64, data: &MnistData) {
+    fn calculate_accuracy_and_log(&mut self, epoch: usize, time_taken: f64, data: &Dataset) {
         let training_data = &data.training;
         let validation_data = &data.validation;
         let test_data = &data.test;
@@ -261,7 +257,7 @@ impl Network {
 
         let validation_label = if is_new_validation_record {
             format!(
-                "\x1b[92m\x1b[1mValidation Accuracy: ${:.2}%\x1b[0m",
+                "\x1b[92m\x1b[1mValidation Accuracy: {:.2}%\x1b[0m",
                 validation_accuracy
             )
         } else {
@@ -292,11 +288,9 @@ impl Network {
 
         if recent_max < previous_max + min_delta {
             println!(
-                "Early stopping triggered: max recent accuracy ({:.4}%) did not improve over \
-                previous max accuracy ({:.4}%) by at least {:.4}%",
-                recent_max * 100.0,
-                previous_max * 100.0,
-                min_delta * 100.0
+                "Early stopping triggered: recent max accuracy {:.2}% is not greater than previous \
+                max accuracy {:.2}% by at least {}",
+                recent_max, previous_max, min_delta
             );
             return true;
         }
@@ -304,7 +298,7 @@ impl Network {
         false
     }
 
-    pub fn sdg(&mut self, data: &MnistData) {
+    pub fn sdg(&mut self, data: &Dataset) {
         let max_epochs = self.options.max_epochs;
         let mini_batch_size = self.options.mini_batch_size;
         let stop_early = self.options.stop_early;
