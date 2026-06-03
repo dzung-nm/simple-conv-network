@@ -18,6 +18,8 @@ fn main() {
 
     let mut network = Network::new(network_options);
 
+    println!("{}", network.options);
+
     let data = load_mnist().expect("Failed to load MNIST dataset");
 
     let max = 1000;
@@ -26,15 +28,6 @@ fn main() {
         test: data.test.into_iter().take(max).collect(),
         validation: data.validation.into_iter().take(max).collect(),
     };
-
-    // println!(
-    //     "Network initialized with sizes = {:?}, and cost function = {:?}, \
-    //     and weight initialization method = {:?}. {:?}",
-    //     network.options.sizes,
-    //     network.options.cost_function,
-    //     network.options.weight_init_method,
-    //     network.options.training_params
-    // );
 
     network.sdg(&test_data);
 }

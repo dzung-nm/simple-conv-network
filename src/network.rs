@@ -34,6 +34,28 @@ pub struct NetworkOptions {
     pub stop_early_min_delta: f64,
 }
 
+impl std::fmt::Display for NetworkOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "NetworkOptions {{ sizes: {:?}, cost_function: {:?}, weight_init_method: {:?}, \
+            max_epochs: {}, mini_batch_size: {}, eta: {}, regularization_l1: {:?}, \
+            regularization_l2: {:?}, stop_early: {}, stop_early_patience: {}, stop_early_min_delta: {} }}",
+            self.sizes,
+            self.cost_function,
+            self.weight_init_method,
+            self.max_epochs,
+            self.mini_batch_size,
+            self.eta,
+            self.regularization_l1,
+            self.regularization_l2,
+            self.stop_early,
+            self.stop_early_patience,
+            self.stop_early_min_delta
+        )
+    }
+}
+
 pub struct Network {
     pub options: NetworkOptions,
 
