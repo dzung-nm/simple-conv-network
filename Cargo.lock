@@ -183,6 +183,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01334b89b69ff726750c5ce5073fc8bd860e99aa9a8fc5ca11b04730e3aee97a"
+dependencies = [
+ "link-section",
+ "linktime-proc-macro",
+]
+
+[[package]]
 name = "ctutils"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,6 +422,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
+name = "link-section"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "014e440054ce8170890229eeef5bcda955305e056ec713de40ed366944483f09"
+
+[[package]]
+name = "linktime-proc-macro"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c7b0a3383c2a1002d11349c92c85a666a5fb679e96c79d782cf0dbe557fd6ee"
+
+[[package]]
 name = "log"
 version = "0.4.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -458,6 +480,7 @@ version = "0.1.0"
 dependencies = [
  "blas-src",
  "byteorder",
+ "ctor",
  "ndarray",
  "rand",
  "zip",
