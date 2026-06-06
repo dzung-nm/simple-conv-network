@@ -25,8 +25,8 @@ fn main() {
 
     let network_options = NetworkOptions {
         layers: vec![
-            FullyConnectedLayer::new(784, 100, WeightInitMethods::Xavier),
-            FullyConnectedLayer::new(100, 10, WeightInitMethods::Xavier),
+            Box::new(FullyConnectedLayer::new(784, 100, WeightInitMethods::Xavier)),
+            Box::new(SoftmaxLayer::new(100, 10, WeightInitMethods::Xavier)),
         ],
         cost_function: CostFunctions::CrossEntropy,
         max_epochs: 100,

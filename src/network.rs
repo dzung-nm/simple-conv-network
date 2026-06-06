@@ -5,7 +5,7 @@ use std::time::Instant;
 use crate::box_muller::box_muller_random;
 use crate::sigmoid::{sigmoid, sigmoid_prime};
 use crate::types::{Dataset, TestItem, TrainingItem};
-use crate::utils::{arr_max};
+use crate::utils::arr_max;
 
 #[derive(Debug)]
 pub enum CostFunctions {
@@ -20,7 +20,7 @@ pub enum WeightInitMethods {
     He,
 }
 
-pub struct FullyConnectedLayer {
+pub struct BaseLayer {
     input_size: usize,
     output_size: usize,
     weight_init_method: WeightInitMethods,
@@ -28,8 +28,8 @@ pub struct FullyConnectedLayer {
     biases: Array2<f64>,
 }
 
-impl FullyConnectedLayer {
-    pub fn new(n_in: usize, n_out: usize, wim: WeightInitMethods) -> FullyConnectedLayer {
+impl BaseLayer {
+    pub fn new(n_in: usize, n_out: usize, wim: WeightInitMethods) -> BaseLayer {
         let weights = match wim {
             WeightInitMethods::Standard => {
                 Array2::from_shape_fn((n_out, n_in), |_| box_muller_random())
@@ -54,8 +54,62 @@ impl FullyConnectedLayer {
     }
 }
 
+pub trait Layer {
+    fn get_base(&self) -> &BaseLayer;
+    fn get_base_mut(&mut self) -> &mut BaseLayer;
+    fn get_name(&self) -> String;
+}
+
+pub struct FullyConnectedLayer {
+    base: BaseLayer,
+}
+
+impl FullyConnectedLayer {
+    pub fn new(input_size: usize, output_size: usize, method: WeightInitMethods) -> Self {
+        FullyConnectedLayer {
+            base: BaseLayer::new(input_size, output_size, method),
+        }
+    }
+}
+
+impl Layer for FullyConnectedLayer {
+    fn get_base(&self) -> &BaseLayer {
+        &self.base
+    }
+    fn get_base_mut(&mut self) -> &mut BaseLayer {
+        &mut self.base
+    }
+    fn get_name(&self) -> String {
+        "FullyConnectedLayer".to_string()
+    }
+}
+
+pub struct SoftmaxLayer {
+    base: BaseLayer,
+}
+
+impl SoftmaxLayer {
+    pub fn new(input_size: usize, output_size: usize, method: WeightInitMethods) -> Self {
+        SoftmaxLayer {
+            base: BaseLayer::new(input_size, output_size, method),
+        }
+    }
+}
+
+impl Layer for SoftmaxLayer {
+    fn get_base(&self) -> &BaseLayer {
+        &self.base
+    }
+    fn get_base_mut(&mut self) -> &mut BaseLayer {
+        &mut self.base
+    }
+    fn get_name(&self) -> String {
+        "SoftmaxLayer".to_string()
+    }
+}
+
 pub struct NetworkOptions {
-    pub layers: Vec<FullyConnectedLayer>,
+    pub layers: Vec<Box<dyn Layer>>,
     pub cost_function: CostFunctions,
     pub max_epochs: usize,
     pub mini_batch_size: usize,
@@ -70,10 +124,14 @@ pub struct NetworkOptions {
 impl std::fmt::Display for NetworkOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.layers.iter().for_each(|layer| {
+            let base_layer = layer.get_base();
             writeln!(
                 f,
-                "Layer: input_size = {}, output_size = {}, weight_init_method = {:?}",
-                layer.input_size, layer.output_size, layer.weight_init_method
+                "Layer {}: input_size = {}, output_size = {}, weight_init_method = {:?}",
+                layer.get_name(),
+                base_layer.input_size,
+                base_layer.output_size,
+                base_layer.weight_init_method
             )
             .unwrap();
         });
@@ -109,12 +167,12 @@ impl Network {
         let layers = &options.layers;
 
         if layers.len() < 2 {
-            panic!("Network must have at least 2 layers (input and output)");
+            panic!("Network must have at least 2 layers");
         }
 
         // Validate that the output size of each layer matches the input size of the next layer
         for i in 1..layers.len() {
-            if layers[i - 1].output_size != layers[i].input_size {
+            if layers[i - 1].get_base().output_size != layers[i].get_base().input_size {
                 panic!("Input and output layers do not match");
             }
         }
@@ -127,6 +185,22 @@ impl Network {
         }
     }
 
+    fn get_base_layers(&self) -> Vec<&BaseLayer> {
+        self.options
+            .layers
+            .iter()
+            .map(|layer| layer.get_base())
+            .collect::<Vec<_>>()
+    }
+
+    fn get_base_layers_mut(&mut self) -> Vec<&mut BaseLayer> {
+        self.options
+            .layers
+            .iter_mut()
+            .map(|layer| layer.get_base_mut())
+            .collect::<Vec<_>>()
+    }
+
     fn back_propagate(
         &self,
         x: &Array2<f64>,
@@ -134,7 +208,7 @@ impl Network {
         nabla_b: &mut Vec<Array2<f64>>,
         nabla_w: &mut Vec<Array2<f64>>,
     ) {
-        let layers = &self.options.layers;
+        let layers = self.get_base_layers();
 
         // feedforward
         let mut activations: Vec<Array2<f64>> = Vec::new();
@@ -181,11 +255,12 @@ impl Network {
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
 
-        let mut nabla_b = self.options.layers
+        let base_layers = self.get_base_layers();
+        let mut nabla_b = base_layers
             .iter()
             .map(|layer| Array2::zeros(layer.biases.dim()))
             .collect::<Vec<_>>();
-        let mut nabla_w = self.options.layers
+        let mut nabla_w = base_layers
             .iter()
             .map(|layer| Array2::zeros(layer.weights.dim()))
             .collect::<Vec<_>>();
@@ -194,7 +269,7 @@ impl Network {
             self.back_propagate(&item.0, &item.1, &mut nabla_b, &mut nabla_w);
         });
 
-        let layers = &mut self.options.layers;
+        let mut layers = self.get_base_layers_mut();
 
         for i in 0..layers.len() {
             let eta_over_batch_size = eta / mini_batch.len() as f64;
@@ -227,7 +302,7 @@ impl Network {
     }
 
     fn feed_forward(&self, x: &Array2<f64>) -> Array2<f64> {
-        let layers = &self.options.layers;
+        let layers = self.get_base_layers();
         let mut activation = x.clone();
         for i in 0..layers.len() {
             let z = layers[i].weights.dot(&activation) + &layers[i].biases;
@@ -366,5 +441,91 @@ impl Network {
                 break;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_network_initialization() {
+        let options = NetworkOptions {
+            layers: vec![
+                Box::new(FullyConnectedLayer::new(
+                    784,
+                    100,
+                    WeightInitMethods::Xavier,
+                )),
+                Box::new(SoftmaxLayer::new(100, 10, WeightInitMethods::Xavier)),
+            ],
+            cost_function: CostFunctions::CrossEntropy,
+            max_epochs: 10,
+            mini_batch_size: 10,
+            eta: 0.1,
+            regularization_l1: None,
+            regularization_l2: Some(5.0),
+            stop_early: true,
+            stop_early_patience: 20,
+            stop_early_min_delta: 0.1,
+        };
+
+        let network = Network::new(options);
+        assert_eq!(network.options.layers.len(), 2);
+        assert_eq!(network.options.max_epochs, 10);
+        assert_eq!(network.options.mini_batch_size, 10);
+        assert_eq!(network.options.eta, 0.1);
+        assert_eq!(network.options.regularization_l1, None);
+        assert_eq!(network.options.regularization_l2, Some(5.0));
+        assert_eq!(network.options.stop_early, true);
+        assert_eq!(network.options.stop_early_patience, 20);
+        assert_eq!(network.options.stop_early_min_delta, 0.1);
+    }
+
+    #[test]
+    #[should_panic = "Network must have at least 2 layers"]
+    fn test_at_least_two_layers() {
+        let options = NetworkOptions {
+            layers: vec![Box::new(SoftmaxLayer::new(
+                100,
+                10,
+                WeightInitMethods::Xavier,
+            ))],
+            cost_function: CostFunctions::CrossEntropy,
+            max_epochs: 10,
+            mini_batch_size: 10,
+            eta: 0.1,
+            regularization_l1: None,
+            regularization_l2: Some(5.0),
+            stop_early: true,
+            stop_early_patience: 20,
+            stop_early_min_delta: 0.1,
+        };
+        Network::new(options);
+    }
+
+    #[test]
+    #[should_panic = "Input and output layers do not match"]
+    fn test_input_output_not_match() {
+        let options = NetworkOptions {
+            layers: vec![
+                Box::new(FullyConnectedLayer::new(
+                    784,
+                    100,
+                    WeightInitMethods::Xavier,
+                )),
+                Box::new(SoftmaxLayer::new(101, 10, WeightInitMethods::Xavier)),
+            ],
+            cost_function: CostFunctions::CrossEntropy,
+            max_epochs: 10,
+            mini_batch_size: 10,
+            eta: 0.1,
+            regularization_l1: None,
+            regularization_l2: Some(5.0),
+            stop_early: true,
+            stop_early_patience: 20,
+            stop_early_min_delta: 0.1,
+        };
+        Network::new(options);
     }
 }
