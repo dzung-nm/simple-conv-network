@@ -1,5 +1,3 @@
-use ndarray::Array2;
-
 /// Return the maximum value in the input array of f64. Panics if the input array is empty.
 /// Warning: if there is a f64::NAN value in the array, the result will be f64::NAN.
 pub fn arr_max(a: &Vec<f64>) -> f64 {
@@ -7,10 +5,6 @@ pub fn arr_max(a: &Vec<f64>) -> f64 {
         panic!("arr_max: input array is empty");
     }
     a.iter().max_by(|x, y| x.total_cmp(y)).unwrap().clone()
-}
-
-pub fn create_zero_copy(a: &Vec<Array2<f64>>) -> Vec<Array2<f64>> {
-    a.iter().map(|arr2| Array2::zeros(arr2.dim())).collect::<Vec<_>>()
 }
 
 #[cfg(test)]

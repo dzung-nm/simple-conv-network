@@ -5,7 +5,7 @@ use std::time::Instant;
 use crate::box_muller::box_muller_random;
 use crate::sigmoid::{sigmoid, sigmoid_prime};
 use crate::types::{Dataset, TestItem, TrainingItem};
-use crate::utils::{arr_max, create_zero_copy};
+use crate::utils::{arr_max};
 
 #[derive(Debug)]
 pub enum CostFunctions {
@@ -20,10 +20,43 @@ pub enum WeightInitMethods {
     He,
 }
 
+pub struct FullyConnectedLayer {
+    input_size: usize,
+    output_size: usize,
+    weight_init_method: WeightInitMethods,
+    weights: Array2<f64>,
+    biases: Array2<f64>,
+}
+
+impl FullyConnectedLayer {
+    pub fn new(n_in: usize, n_out: usize, wim: WeightInitMethods) -> FullyConnectedLayer {
+        let weights = match wim {
+            WeightInitMethods::Standard => {
+                Array2::from_shape_fn((n_out, n_in), |_| box_muller_random())
+            }
+            WeightInitMethods::Xavier => Array2::from_shape_fn((n_out, n_in), |_| {
+                box_muller_random() * (1.0 / (n_in as f64).sqrt())
+            }),
+            WeightInitMethods::He => Array2::from_shape_fn((n_out, n_in), |_| {
+                box_muller_random() * (2.0 / (n_in as f64)).sqrt()
+            }),
+        };
+
+        let biases = Array2::from_shape_fn((n_out, 1), |_| box_muller_random());
+
+        Self {
+            input_size: n_in,
+            output_size: n_out,
+            weight_init_method: wim,
+            weights,
+            biases,
+        }
+    }
+}
+
 pub struct NetworkOptions {
-    pub sizes: Vec<usize>,
+    pub layers: Vec<FullyConnectedLayer>,
     pub cost_function: CostFunctions,
-    pub weight_init_method: WeightInitMethods,
     pub max_epochs: usize,
     pub mini_batch_size: usize,
     pub eta: f64,
@@ -36,14 +69,20 @@ pub struct NetworkOptions {
 
 impl std::fmt::Display for NetworkOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.layers.iter().for_each(|layer| {
+            writeln!(
+                f,
+                "Layer: input_size = {}, output_size = {}, weight_init_method = {:?}",
+                layer.input_size, layer.output_size, layer.weight_init_method
+            )
+            .unwrap();
+        });
         write!(
             f,
-            "NetworkOptions {{ sizes: {:?}, cost_function: {:?}, weight_init_method: {:?}, \
+            "NetworkOptions {{ cost_function: {:?}, \
             max_epochs: {}, mini_batch_size: {}, eta: {}, regularization_l1: {:?}, \
             regularization_l2: {:?}, stop_early: {}, stop_early_patience: {}, stop_early_min_delta: {} }}",
-            self.sizes,
             self.cost_function,
-            self.weight_init_method,
             self.max_epochs,
             self.mini_batch_size,
             self.eta,
@@ -59,10 +98,6 @@ impl std::fmt::Display for NetworkOptions {
 pub struct Network {
     pub options: NetworkOptions,
 
-    weights: Vec<Array2<f64>>,
-    biases: Vec<Array2<f64>>,
-    num_layers: usize,
-
     // For tracking accuracy over epochs
     training_accuracies: Vec<f64>,
     validation_accuracies: Vec<f64>,
@@ -71,39 +106,21 @@ pub struct Network {
 
 impl Network {
     pub fn new(options: NetworkOptions) -> Self {
-        let num_layers = options.sizes.len();
+        let layers = &options.layers;
 
-        // Initialize weights and biases based on the specified method
-        let mut weights = Vec::new();
-        let mut biases = Vec::new();
+        if layers.len() < 2 {
+            panic!("Network must have at least 2 layers (input and output)");
+        }
 
-        for i in 0..num_layers - 1 {
-            let cols = options.sizes[i];
-            let rows = options.sizes[i + 1];
-
-            let weight_matrix = match options.weight_init_method {
-                WeightInitMethods::Standard => {
-                    Array2::from_shape_fn((rows, cols), |_| box_muller_random())
-                }
-                WeightInitMethods::Xavier => Array2::from_shape_fn((rows, cols), |_| {
-                    box_muller_random() * (1.0 / (cols as f64).sqrt())
-                }),
-                WeightInitMethods::He => Array2::from_shape_fn((rows, cols), |_| {
-                    box_muller_random() * (2.0 / (cols as f64)).sqrt()
-                }),
-            };
-
-            let bias_vector = Array2::from_shape_fn((rows, 1), |_| box_muller_random());
-
-            weights.push(weight_matrix);
-            biases.push(bias_vector);
+        // Validate that the output size of each layer matches the input size of the next layer
+        for i in 1..layers.len() {
+            if layers[i - 1].output_size != layers[i].input_size {
+                panic!("Input and output layers do not match");
+            }
         }
 
         Network {
             options,
-            weights,
-            biases,
-            num_layers,
             training_accuracies: Vec::new(),
             validation_accuracies: Vec::new(),
             test_accuracies: Vec::new(),
@@ -117,13 +134,15 @@ impl Network {
         nabla_b: &mut Vec<Array2<f64>>,
         nabla_w: &mut Vec<Array2<f64>>,
     ) {
+        let layers = &self.options.layers;
+
         // feedforward
         let mut activations: Vec<Array2<f64>> = Vec::new();
         let mut zs: Vec<Array2<f64>> = Vec::new();
-        for i in 0..self.num_layers - 1 {
+        for i in 0..layers.len() {
             let a = if i == 0 { x } else { &activations[i - 1] };
             // z = w * a + b (using BLAS-accelerated matrix multiplication)
-            let z = self.weights[i].dot(a) + &self.biases[i];
+            let z = layers[i].weights.dot(a) + &layers[i].biases;
             activations.push(sigmoid(&z));
             zs.push(z);
         }
@@ -143,13 +162,13 @@ impl Network {
             }
         };
 
-        for l in (0..self.num_layers - 1).rev() {
+        for l in (0..layers.len()).rev() {
             let a_prev = if l == 0 { x } else { &activations[l - 1] };
             nabla_b[l] += &delta;
             nabla_w[l] += &delta.dot(&a_prev.t());
 
             if l > 0 {
-                let w_transpose = self.weights[l].t();
+                let w_transpose = layers[l].weights.t();
                 let z_prev = &zs[l - 1];
                 let sp = sigmoid_prime(&z_prev);
                 delta = w_transpose.dot(&delta) * sp;
@@ -162,18 +181,26 @@ impl Network {
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
 
-        let mut nabla_b = create_zero_copy(&self.biases);
-        let mut nabla_w = create_zero_copy(&self.weights);
+        let mut nabla_b = self.options.layers
+            .iter()
+            .map(|layer| Array2::zeros(layer.biases.dim()))
+            .collect::<Vec<_>>();
+        let mut nabla_w = self.options.layers
+            .iter()
+            .map(|layer| Array2::zeros(layer.weights.dim()))
+            .collect::<Vec<_>>();
 
         mini_batch.iter().for_each(|&item| {
             self.back_propagate(&item.0, &item.1, &mut nabla_b, &mut nabla_w);
         });
 
-        for i in 0..self.biases.len() {
+        let layers = &mut self.options.layers;
+
+        for i in 0..layers.len() {
             let eta_over_batch_size = eta / mini_batch.len() as f64;
             nabla_b[i].map_inplace(|nb| *nb *= eta_over_batch_size);
             nabla_w[i].map_inplace(|nw| *nw *= eta_over_batch_size);
-            self.biases[i] -= &nabla_b[i];
+            layers[i].biases -= &nabla_b[i];
 
             let data_size = training_data_size as f64;
 
@@ -181,28 +208,29 @@ impl Network {
             if r_l1.is_some() && r_l2.is_some() {
                 // Apply both L1 and L2 regularization
                 let weight_decay = 1.0 - (eta * r_l2.unwrap()) / data_size;
-                self.weights[i].map_inplace(|w| {
+                layers[i].weights.map_inplace(|w| {
                     *w = *w * weight_decay - eta * r_l1.unwrap() * w.signum() / data_size;
                 });
             } else if r_l2.is_some() {
                 // Apply L2 regularization only
                 let weight_decay = 1.0 - (eta * r_l2.unwrap()) / data_size;
-                self.weights[i].map_inplace(|w| *w *= weight_decay);
+                layers[i].weights.map_inplace(|w| *w *= weight_decay);
             } else if r_l1.is_some() {
                 // Apply L1 regularization only
-                self.weights[i].map_inplace(|w| {
+                layers[i].weights.map_inplace(|w| {
                     *w -= eta * r_l1.unwrap() * w.signum() / data_size;
                 });
             }
 
-            self.weights[i] -= &nabla_w[i];
+            layers[i].weights -= &nabla_w[i];
         }
     }
 
     fn feed_forward(&self, x: &Array2<f64>) -> Array2<f64> {
+        let layers = &self.options.layers;
         let mut activation = x.clone();
-        for i in 0..self.num_layers - 1 {
-            let z = self.weights[i].dot(&activation) + &self.biases[i];
+        for i in 0..layers.len() {
+            let z = layers[i].weights.dot(&activation) + &layers[i].biases;
             activation = sigmoid(&z);
         }
         activation

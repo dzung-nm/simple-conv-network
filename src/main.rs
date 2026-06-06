@@ -24,9 +24,11 @@ fn main() {
     );
 
     let network_options = NetworkOptions {
-        sizes: vec![784, 100, 10],
+        layers: vec![
+            FullyConnectedLayer::new(784, 100, WeightInitMethods::Xavier),
+            FullyConnectedLayer::new(100, 10, WeightInitMethods::Xavier),
+        ],
         cost_function: CostFunctions::CrossEntropy,
-        weight_init_method: WeightInitMethods::Xavier,
         max_epochs: 100,
         mini_batch_size: 10,
         eta: 0.1,
