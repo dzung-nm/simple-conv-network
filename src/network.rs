@@ -1,5 +1,6 @@
 use ndarray::Array2;
 use rand::seq::SliceRandom;
+use std::cmp::PartialEq;
 use std::time::Instant;
 
 use crate::box_muller::box_muller_random;
@@ -19,6 +20,12 @@ pub enum WeightInitMethods {
     Standard,
     Xavier,
     He,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LayerTypes {
+    FullyConnected,
+    Softmax,
 }
 
 pub struct BaseLayer {
@@ -59,6 +66,7 @@ pub trait Layer {
     fn get_base(&self) -> &BaseLayer;
     fn get_base_mut(&mut self) -> &mut BaseLayer;
     fn get_name(&self) -> String;
+    fn get_type(&self) -> LayerTypes;
     fn activate(&self, weights: &Array2<f64>) -> Array2<f64>;
 }
 
@@ -83,6 +91,9 @@ impl Layer for FullyConnectedLayer {
     }
     fn get_name(&self) -> String {
         "FullyConnectedLayer".to_string()
+    }
+    fn get_type(&self) -> LayerTypes {
+        LayerTypes::FullyConnected
     }
     fn activate(&self, weights: &Array2<f64>) -> Array2<f64> {
         sigmoid(weights)
@@ -110,6 +121,9 @@ impl Layer for SoftmaxLayer {
     }
     fn get_name(&self) -> String {
         "SoftmaxLayer".to_string()
+    }
+    fn get_type(&self) -> LayerTypes {
+        LayerTypes::Softmax
     }
     fn activate(&self, weights: &Array2<f64>) -> Array2<f64> {
         softmax(weights)
@@ -172,7 +186,7 @@ pub struct Network {
     nabla_w: Vec<Array2<f64>>,
 
     // cost_function will depend on the type of the last layer
-    cost_function: CostFunctions
+    cost_function: CostFunctions,
 }
 
 impl Network {
@@ -193,7 +207,7 @@ impl Network {
 
         // If a layer is a Softmax layer, it should be the final layer
         for i in 0..layers.len() - 1 {
-            if layers[i].get_name() == "SoftmaxLayer" {
+            if layers[i].get_type() == LayerTypes::Softmax {
                 panic!("Softmax layer must be the final layer in the network");
             }
         }
@@ -208,8 +222,8 @@ impl Network {
             .map(|layer| Array2::zeros(layer.get_base().weights.dim()))
             .collect::<Vec<_>>();
 
-        let cost_function = match last_layer.get_name().as_str() {
-            "SoftmaxLayer" => CostFunctions::CrossEntropy,
+        let cost_function = match last_layer.get_type() {
+            LayerTypes::Softmax => CostFunctions::CrossEntropy,
             _ => CostFunctions::Quadratic,
         };
 
