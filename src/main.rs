@@ -28,7 +28,6 @@ fn main() {
             Box::new(FullyConnectedLayer::new(784, 100, WeightInitMethods::Xavier)),
             Box::new(SoftmaxLayer::new(100, 10, WeightInitMethods::Xavier)),
         ],
-        cost_function: CostFunctions::CrossEntropy,
         max_epochs: 100,
         mini_batch_size: 10,
         eta: 0.1,

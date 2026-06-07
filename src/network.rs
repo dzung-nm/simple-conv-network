@@ -118,7 +118,6 @@ impl Layer for SoftmaxLayer {
 
 pub struct NetworkOptions {
     pub layers: Vec<Box<dyn Layer>>,
-    pub cost_function: CostFunctions,
     pub max_epochs: usize,
     pub mini_batch_size: usize,
     pub eta: f64,
@@ -145,10 +144,8 @@ impl std::fmt::Display for NetworkOptions {
         });
         write!(
             f,
-            "NetworkOptions {{ cost_function: {:?}, \
-            max_epochs: {}, mini_batch_size: {}, eta: {}, regularization_l1: {:?}, \
+            "NetworkOptions {{ max_epochs: {}, mini_batch_size: {}, eta: {}, regularization_l1: {:?}, \
             regularization_l2: {:?}, stop_early: {}, stop_early_patience: {}, stop_early_min_delta: {} }}",
-            self.cost_function,
             self.max_epochs,
             self.mini_batch_size,
             self.eta,
@@ -173,11 +170,15 @@ pub struct Network {
     // to avoid reallocating them for each training example
     nabla_b: Vec<Array2<f64>>,
     nabla_w: Vec<Array2<f64>>,
+
+    // cost_function will depend on the type of the last layer
+    cost_function: CostFunctions
 }
 
 impl Network {
     pub fn new(options: NetworkOptions) -> Self {
         let layers = &options.layers;
+        let last_layer = layers.last().unwrap();
 
         if layers.len() < 2 {
             panic!("Network must have at least 2 layers");
@@ -207,6 +208,11 @@ impl Network {
             .map(|layer| Array2::zeros(layer.get_base().weights.dim()))
             .collect::<Vec<_>>();
 
+        let cost_function = match last_layer.get_name().as_str() {
+            "SoftmaxLayer" => CostFunctions::CrossEntropy,
+            _ => CostFunctions::Quadratic,
+        };
+
         Network {
             options,
             training_accuracies: Vec::new(),
@@ -214,6 +220,7 @@ impl Network {
             test_accuracies: Vec::new(),
             nabla_b,
             nabla_w,
+            cost_function,
         }
     }
 
@@ -235,7 +242,7 @@ impl Network {
         let last_activation = activations.last().unwrap();
         let last_z = zs.last().unwrap();
 
-        let mut delta = match self.options.cost_function {
+        let mut delta = match self.cost_function {
             CostFunctions::CrossEntropy => {
                 // For cross-entropy cost function, the delta is just the output error
                 last_activation - y
@@ -465,7 +472,6 @@ mod tests {
                 )),
                 Box::new(SoftmaxLayer::new(100, 10, WeightInitMethods::Xavier)),
             ],
-            cost_function: CostFunctions::CrossEntropy,
             max_epochs: 10,
             mini_batch_size: 10,
             eta: 0.1,
@@ -497,7 +503,6 @@ mod tests {
                 10,
                 WeightInitMethods::Xavier,
             ))],
-            cost_function: CostFunctions::CrossEntropy,
             max_epochs: 10,
             mini_batch_size: 10,
             eta: 0.1,
@@ -522,7 +527,6 @@ mod tests {
                 )),
                 Box::new(SoftmaxLayer::new(101, 10, WeightInitMethods::Xavier)),
             ],
-            cost_function: CostFunctions::CrossEntropy,
             max_epochs: 10,
             mini_batch_size: 10,
             eta: 0.1,
@@ -543,7 +547,6 @@ mod tests {
                 Box::new(SoftmaxLayer::new(784, 100, WeightInitMethods::Xavier)),
                 Box::new(SoftmaxLayer::new(100, 10, WeightInitMethods::Xavier)),
             ],
-            cost_function: CostFunctions::Quadratic,
             max_epochs: 10,
             mini_batch_size: 10,
             eta: 0.1,
