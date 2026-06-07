@@ -160,6 +160,11 @@ pub struct Network {
     training_accuracies: Vec<f64>,
     validation_accuracies: Vec<f64>,
     test_accuracies: Vec<f64>,
+
+    // We use these variables to store the gradients during backpropagation
+    // to avoid reallocating them for each training example
+    nabla_b: Vec<Array2<f64>>,
+    nabla_w: Vec<Array2<f64>>,
 }
 
 impl Network {
@@ -184,46 +189,35 @@ impl Network {
             }
         }
 
+        let nabla_b = layers
+            .iter()
+            .map(|layer| Array2::zeros(layer.get_base().biases.dim()))
+            .collect::<Vec<_>>();
+
+        let nabla_w = layers
+            .iter()
+            .map(|layer| Array2::zeros(layer.get_base().weights.dim()))
+            .collect::<Vec<_>>();
+
         Network {
             options,
             training_accuracies: Vec::new(),
             validation_accuracies: Vec::new(),
             test_accuracies: Vec::new(),
+            nabla_b,
+            nabla_w,
         }
     }
 
-    fn get_base_layers(&self) -> Vec<&BaseLayer> {
-        self.options
-            .layers
-            .iter()
-            .map(|layer| layer.get_base())
-            .collect::<Vec<_>>()
-    }
-
-    fn get_base_layers_mut(&mut self) -> Vec<&mut BaseLayer> {
-        self.options
-            .layers
-            .iter_mut()
-            .map(|layer| layer.get_base_mut())
-            .collect::<Vec<_>>()
-    }
-
-    fn back_propagate(
-        &self,
-        x: &Array2<f64>,
-        y: &Array2<f64>,
-        nabla_b: &mut Vec<Array2<f64>>,
-        nabla_w: &mut Vec<Array2<f64>>,
-    ) {
-        let layers = self.get_base_layers();
-
+    fn back_propagate(&mut self, x: &Array2<f64>, y: &Array2<f64>) {
         // feedforward
         let mut activations: Vec<Array2<f64>> = Vec::new();
         let mut zs: Vec<Array2<f64>> = Vec::new();
-        for i in 0..layers.len() {
+        for i in 0..self.options.layers.len() {
+            let layer = &self.options.layers[i].get_base();
             let a = if i == 0 { x } else { &activations[i - 1] };
             // z = w * a + b (using BLAS-accelerated matrix multiplication)
-            let z = layers[i].weights.dot(a) + &layers[i].biases;
+            let z = layer.weights.dot(a) + &layer.biases;
             activations.push(sigmoid(&z));
             zs.push(z);
         }
@@ -243,13 +237,15 @@ impl Network {
             }
         };
 
-        for l in (0..layers.len()).rev() {
+        for l in (0..self.options.layers.len()).rev() {
+            let layer = &self.options.layers[l].get_base();
+
             let a_prev = if l == 0 { x } else { &activations[l - 1] };
-            nabla_b[l] += &delta;
-            nabla_w[l] += &delta.dot(&a_prev.t());
+            self.nabla_b[l] += &delta;
+            self.nabla_w[l] += &delta.dot(&a_prev.t());
 
             if l > 0 {
-                let w_transpose = layers[l].weights.t();
+                let w_transpose = layer.weights.t();
                 let z_prev = &zs[l - 1];
                 let sp = sigmoid_prime(&z_prev);
                 delta = w_transpose.dot(&delta) * sp;
@@ -262,27 +258,20 @@ impl Network {
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
 
-        let base_layers = self.get_base_layers();
-        let mut nabla_b = base_layers
-            .iter()
-            .map(|layer| Array2::zeros(layer.biases.dim()))
-            .collect::<Vec<_>>();
-        let mut nabla_w = base_layers
-            .iter()
-            .map(|layer| Array2::zeros(layer.weights.dim()))
-            .collect::<Vec<_>>();
+        self.nabla_b.iter_mut().for_each(|nb| nb.fill(0.0));
+        self.nabla_w.iter_mut().for_each(|nw| nw.fill(0.0));
 
         mini_batch.iter().for_each(|&item| {
-            self.back_propagate(&item.0, &item.1, &mut nabla_b, &mut nabla_w);
+            self.back_propagate(&item.0, &item.1);
         });
 
-        let mut layers = self.get_base_layers_mut();
+        for i in 0..self.options.layers.len() {
+            let layer = &mut self.options.layers[i].get_base_mut();
 
-        for i in 0..layers.len() {
             let eta_over_batch_size = eta / mini_batch.len() as f64;
-            nabla_b[i].map_inplace(|nb| *nb *= eta_over_batch_size);
-            nabla_w[i].map_inplace(|nw| *nw *= eta_over_batch_size);
-            layers[i].biases -= &nabla_b[i];
+            self.nabla_b[i].map_inplace(|nb| *nb *= eta_over_batch_size);
+            self.nabla_w[i].map_inplace(|nw| *nw *= eta_over_batch_size);
+            layer.biases -= &self.nabla_b[i];
 
             let data_size = training_data_size as f64;
 
@@ -290,29 +279,29 @@ impl Network {
             if r_l1.is_some() && r_l2.is_some() {
                 // Apply both L1 and L2 regularization
                 let weight_decay = 1.0 - (eta * r_l2.unwrap()) / data_size;
-                layers[i].weights.map_inplace(|w| {
+                layer.weights.map_inplace(|w| {
                     *w = *w * weight_decay - eta * r_l1.unwrap() * w.signum() / data_size;
                 });
             } else if r_l2.is_some() {
                 // Apply L2 regularization only
                 let weight_decay = 1.0 - (eta * r_l2.unwrap()) / data_size;
-                layers[i].weights.map_inplace(|w| *w *= weight_decay);
+                layer.weights.map_inplace(|w| *w *= weight_decay);
             } else if r_l1.is_some() {
                 // Apply L1 regularization only
-                layers[i].weights.map_inplace(|w| {
+                layer.weights.map_inplace(|w| {
                     *w -= eta * r_l1.unwrap() * w.signum() / data_size;
                 });
             }
 
-            layers[i].weights -= &nabla_w[i];
+            layer.weights -= &self.nabla_w[i];
         }
     }
 
     fn feed_forward(&self, x: &Array2<f64>) -> Array2<f64> {
-        let layers = self.get_base_layers();
         let mut activation = x.clone();
-        for i in 0..layers.len() {
-            let z = layers[i].weights.dot(&activation) + &layers[i].biases;
+        for i in 0..self.options.layers.len() {
+            let layer = &self.options.layers[i].get_base();
+            let z = layer.weights.dot(&activation) + &layer.biases;
             activation = sigmoid(&z);
         }
         activation
