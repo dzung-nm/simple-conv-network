@@ -294,7 +294,7 @@ impl Network {
         }
     }
 
-    fn update_mini_batch(&mut self, mini_batch: &Vec<&TrainingItem>, training_data_size: usize) {
+    fn update_mini_batch(&mut self, mini_batch: Vec<&TrainingItem>, training_data_size: usize) {
         let eta = self.options.eta;
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
@@ -455,20 +455,13 @@ impl Network {
             let start = Instant::now();
 
             indices.shuffle(&mut rand::rng());
-
-            let mini_batches = indices
-                .chunks(mini_batch_size)
-                .map(|indices_batch| {
-                    indices_batch
-                        .iter()
-                        .map(|&i| &training_data[i])
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-
-            mini_batches
-                .iter()
-                .for_each(|mini_batch| self.update_mini_batch(mini_batch, training_data_size));
+            indices.chunks(mini_batch_size).for_each(|indices_batch| {
+                let mini_batch = indices_batch
+                    .iter()
+                    .map(|&i| &training_data[i])
+                    .collect::<Vec<_>>();
+                self.update_mini_batch(mini_batch, training_data_size);
+            });
 
             let time_taken = start.elapsed();
             self.calculate_accuracy_and_log(epoch, time_taken.as_secs_f64(), &data);
