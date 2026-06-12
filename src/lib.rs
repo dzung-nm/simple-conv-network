@@ -1,12 +1,24 @@
 extern crate blas_src;
 
+pub mod cnn_net;
+pub mod conv_layer;
+pub mod max_pool_layer;
+pub mod sigmoid_layer;
+pub mod softmax_layer;
+pub mod types;
+
+pub use base_net::{NetOptions, FeedForwardNet};
+pub use base_layer::Layer;
+
+mod base_net;
+mod base_layer;
 mod box_muller;
+mod relu;
 mod sigmoid;
 mod softmax;
 mod utils;
-
-pub mod types;
-pub mod network;
+mod im2col;
+mod col2im;
 
 // Suppress panic output for all tests
 #[cfg(test)]
