@@ -34,18 +34,23 @@ impl Layer for SoftmaxLayer {
     fn get_base(&self) -> &BaseLayer {
         &self.base
     }
+
     fn get_base_mut(&mut self) -> &mut BaseLayer {
         &mut self.base
     }
+
     fn get_name(&self) -> String {
-        "SoftmaxLayer".to_string()
+        "SoftmaxLayer, weight init method = Xavier".to_string()
     }
+
     fn get_type(&self) -> LayerTypes {
         LayerTypes::Softmax
     }
+
     fn activate(&self, z: &Array2<f64>) -> Array2<f64> {
         softmax(z)
     }
+
     fn activate_prime(&self, z: &Array2<f64>) -> Array2<f64> {
         // Softmax must always be the last layer; activate_prime is never used in the
         // backward chain beyond the last layer.  Returning all-ones means the default

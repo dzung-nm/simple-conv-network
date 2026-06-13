@@ -34,18 +34,23 @@ impl Layer for SigmoidLayer {
     fn get_base(&self) -> &BaseLayer {
         &self.base
     }
+
     fn get_base_mut(&mut self) -> &mut BaseLayer {
         &mut self.base
     }
+
     fn get_name(&self) -> String {
-        "SigmoidLayer".to_string()
+        "SigmoidLayer, weight init method = Xavier".to_string()
     }
+
     fn get_type(&self) -> LayerTypes {
         LayerTypes::Sigmoid
     }
+
     fn activate(&self, z: &Array2<f64>) -> Array2<f64> {
         sigmoid(z)
     }
+
     fn activate_prime(&self, z: &Array2<f64>) -> Array2<f64> {
         sigmoid_prime(z)
     }
