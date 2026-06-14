@@ -7,6 +7,14 @@ use crate::col2im::col2im;
 use crate::im2col::im2col;
 use crate::relu::{relu, relu_prime};
 
+pub struct ConvLayerConfig {
+    pub input: (usize, usize, usize), // in_channels, input_h, input_w
+    pub kernel_size: (usize, usize), // kernel_h, kernel_w
+    pub num_filters: usize,
+    pub stride: usize,
+    pub padding: usize,
+}
+
 pub struct ConvLayer {
     base: BaseLayer,
     in_channels: usize,
@@ -15,23 +23,18 @@ pub struct ConvLayer {
     kernel_w: usize,
     input_h: usize,
     input_w: usize,
-    out_h: usize,
-    out_w: usize,
     stride: usize,
     padding: usize,
+    out_h: usize,
+    out_w: usize,
 }
 
 impl ConvLayer {
-    pub fn new(
-        in_channels: usize,
-        input_h: usize,
-        input_w: usize,
-        num_filters: usize,
-        kernel_h: usize,
-        kernel_w: usize,
-        stride: usize,
-        padding: usize,
-    ) -> Self {
+    pub fn new(config: &ConvLayerConfig) -> Self {
+        let (in_channels, input_h, input_w) = config.input;
+        let (kernel_h, kernel_w) = config.kernel_size; 
+        let (num_filters, stride, padding) = (config.num_filters, config.stride, config.padding);
+
         let out_h = (input_h + 2 * padding - kernel_h) / stride + 1;
         let out_w = (input_w + 2 * padding - kernel_w) / stride + 1;
         let kernel_size = in_channels * kernel_h * kernel_w;

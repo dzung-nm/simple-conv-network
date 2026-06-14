@@ -1,13 +1,13 @@
-mod unzip;
 mod load_mnist;
+mod unzip;
 
-use mnist_conv_rust::types::Dataset;
-use mnist_conv_rust::network::*;
 use mnist_conv_rust::Layer;
-use mnist_conv_rust::conv_layer::ConvLayer;
-use mnist_conv_rust::max_pool_layer::MaxPoolLayer;
+use mnist_conv_rust::conv_layer::{ConvLayer, ConvLayerConfig};
+use mnist_conv_rust::max_pool_layer::{MaxPoolConfig, MaxPoolLayer};
+use mnist_conv_rust::network::*;
 use mnist_conv_rust::sigmoid_layer::SigmoidLayer;
 use mnist_conv_rust::softmax_layer::SoftmaxLayer;
+use mnist_conv_rust::types::Dataset;
 
 use crate::load_mnist::load_mnist;
 
@@ -37,8 +37,18 @@ fn main() {
     };
 
     let layers: Vec<Box<dyn Layer>> = vec![
-        Box::new(ConvLayer::new(1, 28, 28, 6, 5, 5, 1, 0)),
-        Box::new(MaxPoolLayer::new(6, 24, 24, 2, 2, 2)), // → 6×12×12 = 864
+        Box::new(ConvLayer::new(&ConvLayerConfig {
+            input: (1, 28, 28),
+            kernel_size: (5, 5),
+            num_filters: 6,
+            stride: 1,
+            padding: 0,
+        })), // → 6×24×24 = 3456
+        Box::new(MaxPoolLayer::new(&MaxPoolConfig {
+            input: (6, 24, 24),
+            pool_size: (2, 2),
+            stride: 2,
+        })), // → 6×12×12 = 864
         Box::new(SigmoidLayer::new(864, 30)),
         Box::new(SoftmaxLayer::new(30, 10)),
     ];

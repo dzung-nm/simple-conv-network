@@ -2,6 +2,12 @@ use ndarray::Array2;
 
 use crate::base_layer::*;
 
+pub struct MaxPoolConfig {
+    pub input: (usize, usize, usize), // in_channels, input_h, input_w
+    pub pool_size: (usize, usize), // pool_h, pool_w
+    pub stride: usize,
+}
+
 pub struct MaxPoolLayer {
     base: BaseLayer,
     channels: usize, // number of feature maps (filters)
@@ -15,14 +21,11 @@ pub struct MaxPoolLayer {
 }
 
 impl MaxPoolLayer {
-    pub fn new(
-        channels: usize,
-        input_h: usize,
-        input_w: usize,
-        pool_h: usize,
-        pool_w: usize,
-        stride: usize,
-    ) -> Self {
+    pub fn new(config: &MaxPoolConfig) -> Self {
+        let (channels, input_h, input_w) = config.input;
+        let (pool_h, pool_w) = config.pool_size;
+        let stride = config.stride;
+
         let out_h = (input_h - pool_h) / stride + 1;
         let out_w = (input_w - pool_w) / stride + 1;
         let input_size = channels * input_h * input_w;
@@ -151,7 +154,11 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let layer = MaxPoolLayer::new(1, 4, 4, 2, 2, 2);
+        let layer = MaxPoolLayer::new(&MaxPoolConfig {
+            input: (1, 4, 4),
+            pool_size: (2, 2),
+            stride: 2,
+        });
         let input = array![
             [1.0], [2.0], [3.0], [4.0],
             [5.0], [6.0], [7.0], [8.0],
@@ -168,7 +175,11 @@ mod tests {
 
     #[test]
     fn test_backward() {
-        let mut layer = MaxPoolLayer::new(1, 4, 4, 2, 2, 2);
+        let mut layer = MaxPoolLayer::new(&MaxPoolConfig {
+            input: (1, 4, 4),
+            pool_size: (2, 2),
+            stride: 2,
+        });
         let input = array![
             [1.0], [2.0], [3.0], [4.0],
             [5.0], [6.0], [7.0], [8.0],
