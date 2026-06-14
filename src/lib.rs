@@ -6,6 +6,7 @@ pub mod max_pool_layer;
 pub mod sigmoid_layer;
 pub mod softmax_layer;
 pub mod types;
+pub mod lenet5;
 
 pub use base_layer::Layer;
 
