@@ -130,10 +130,9 @@ impl Network {
     fn back_propagate(&mut self, x: &Array2<f64>, y: &Array2<f64>) {
         let n = self.layers.len();
 
-        // feedforward
-        // Collect LayerData (z, activation) for every layer so that the backward
-        // pass can use a_{l-1} as the input to layer l.
-        let mut forward_data: Vec<LayerData> = Vec::with_capacity(n);
+        // Forward pass: collect ForwardData (z, activation) for every layer
+        // so that backward pass can use cached z and a_{l-1}
+        let mut forward_data: Vec<ForwardData> = Vec::with_capacity(n);
         for i in 0..n {
             let input = if i == 0 {
                 x
@@ -157,16 +156,17 @@ impl Network {
             }
         };
 
-        // backward pass: compute δ for each layer and accumulate ∇W and ∇b
+        // Backward pass: compute δ for each layer and accumulate ∇W and ∇b
+        // Now we pass the cached z from forward_data to avoid recomputation
         for l in (0..n).rev() {
             let input = if l == 0 {
                 x
             } else {
                 &forward_data[l - 1].activation
             };
-            let data = self.layers[l].backward(input, &output_error);
-            // data.activation = W_l^T · δ_l  →  becomes the error signal for layer l-1
-            output_error = data.activation;
+            let backward_data = self.layers[l].backward(input, &output_error, &forward_data[l].z);
+            // backward_data.input_gradient = W_l^T · δ_l  →  becomes the error signal for layer l-1
+            output_error = backward_data.input_gradient;
         }
     }
 

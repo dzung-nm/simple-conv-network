@@ -75,7 +75,7 @@ impl Layer for AveragePoolLayer {
         Array2::ones(z.dim())
     }
 
-    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> ForwardData {
         let mut output = Array2::<f64>::zeros((self.channels * self.out_h * self.out_w, 1));
 
         let scale = 1.0 / ((self.pool_h * self.pool_w) as f64);
@@ -98,13 +98,18 @@ impl Layer for AveragePoolLayer {
             }
         }
 
-        LayerData {
+        ForwardData {
             z: Array2::zeros((0, 0)),
             activation: output,
         }
     }
 
-    fn backward(&mut self, _input: &Array2<f64>, output_error: &Array2<f64>) -> LayerData {
+    fn backward(
+        &mut self,
+        _input: &Array2<f64>,
+        output_error: &Array2<f64>,
+        _z: &Array2<f64>,
+    ) -> BackwardData {
         let mut input_grad = Array2::<f64>::zeros((self.channels * self.input_h * self.input_w, 1));
 
         let scale = 1.0 / (self.pool_h * self.pool_w) as f64;
@@ -126,10 +131,8 @@ impl Layer for AveragePoolLayer {
             }
         }
 
-        let dummy_z = Array2::<f64>::zeros((self.channels * self.out_h * self.out_w, 1));
-        LayerData {
-            z: dummy_z,
-            activation: input_grad,
+        BackwardData {
+            input_gradient: input_grad,
         }
     }
 }
@@ -166,7 +169,8 @@ mod tests {
             stride: 2,
         });
         let output_error = array![[4.0], [8.0], [12.0], [16.0]]; // shape = (4, 1)
-        let input_grad = layer.backward(&Array2::zeros((0, 0)), &output_error).activation;
+        let dummy_z = Array2::zeros((0, 0));
+        let input_grad = layer.backward(&Array2::zeros((0, 0)), &output_error, &dummy_z).input_gradient;
         let expected = array![
             [1.0], [1.0], [2.0], [2.0],
             [1.0], [1.0], [2.0], [2.0],

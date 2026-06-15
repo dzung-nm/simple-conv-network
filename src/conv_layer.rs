@@ -28,10 +28,9 @@ pub struct ConvLayer {
     out_h: usize,
     out_w: usize,
 
-    // Save cols and z_2d from the feedforward step here to avoid recomputing them
-    // in the backward step
-    cols: Array2<f64>,
-    z_2d: Array2<f64>,
+    // Cache from forward pass for efficient backward computation
+    cached_cols: Array2<f64>,
+    cached_z_2d: Array2<f64>,
 }
 
 impl ConvLayer {
@@ -71,8 +70,8 @@ impl ConvLayer {
             out_w,
             stride,
             padding,
-            cols: Array2::zeros((0, 0)),
-            z_2d: Array2::zeros((0, 0)),
+            cached_cols: Array2::zeros((0, 0)),
+            cached_z_2d: Array2::zeros((0, 0)),
         }
     }
 }
@@ -105,7 +104,7 @@ impl Layer for ConvLayer {
         relu_prime(z)
     }
 
-    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> ForwardData {
         let spatial = self.out_h * self.out_w;
 
         // im2col: (in_ch × kH × kW,  out_h × out_w), e.g: (25, 576)
@@ -136,18 +135,23 @@ impl Layer for ConvLayer {
         let a_flat = Array2::from_shape_vec((out_size, 1), a_2d.iter().cloned().collect())
             .expect("ConvLayer forward: reshape activation failed");
 
-        // Cache cols and z_2d
-        self.cols = cols;
-        self.z_2d = z_2d;
+        // Cache cols and z_2d for backward pass
+        self.cached_cols = cols;
+        self.cached_z_2d = z_2d;
 
-        LayerData {
+        ForwardData {
             z: z_flat,
             activation: a_flat,
         }
     }
 
-    fn backward(&mut self, _input: &Array2<f64>, output_error: &Array2<f64>) -> LayerData {
-        if (self.cols.is_empty()) || (self.z_2d.is_empty()) {
+    fn backward(
+        &mut self,
+        _input: &Array2<f64>,
+        output_error: &Array2<f64>,
+        _z: &Array2<f64>,
+    ) -> BackwardData {
+        if self.cached_cols.is_empty() || self.cached_z_2d.is_empty() {
             panic!("ConvLayer backward: cols or z_2d not cached from forward pass");
         }
 
@@ -160,11 +164,11 @@ impl Layer for ConvLayer {
         )
         .expect("ConvLayer backward: reshape output_error failed");
 
-        // δ = output_error_2d ⊙ relu'(z_2d)
-        let delta = output_error_2d * relu_prime(&self.z_2d);
+        // δ = output_error_2d ⊙ relu'(z_2d) - use cached z_2d directly
+        let delta = output_error_2d * relu_prime(&self.cached_z_2d);
 
         // ∇filters (= ∇W): (num_filters, in_ch × kH × kW)
-        self.base.nabla_w += &delta.dot(&self.cols.t());
+        self.base.nabla_w += &delta.dot(&self.cached_cols.t());
 
         // ∇biases: (num_filters, 1) = sum over spatial dimension
         let nabla_b_update = delta
@@ -185,10 +189,8 @@ impl Layer for ConvLayer {
             self.padding,
         );
 
-        let dummy_z = Array2::<f64>::zeros((self.num_filters * spatial, 1));
-        LayerData {
-            z: dummy_z,
-            activation: input_grad,
+        BackwardData {
+            input_gradient: input_grad,
         }
     }
 }
@@ -208,6 +210,7 @@ mod tests {
             stride: 1,
             padding: 0,
         });
-        layer.backward(&Array2::zeros((16, 1)), &Array2::zeros((9, 1)));
+        let dummy_z = Array2::zeros((9, 1));
+        layer.backward(&Array2::zeros((16, 1)), &Array2::zeros((9, 1)), &dummy_z);
     }
 }

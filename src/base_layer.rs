@@ -9,9 +9,15 @@ pub enum LayerTypes {
     AveragePool,
 }
 
-pub struct LayerData {
-    pub z: Array2<f64>,
-    pub activation: Array2<f64>,
+/// Data returned from forward pass
+pub struct ForwardData {
+    pub z: Array2<f64>, // Pre-activation value (needed for backward pass)
+    pub activation: Array2<f64>, // Post-activation value
+}
+
+/// Data returned from backward pass
+pub struct BackwardData {
+    pub input_gradient: Array2<f64>, // Gradient to propagate to the previous layer
 }
 
 pub struct BaseLayer {
@@ -56,33 +62,28 @@ pub trait Layer {
     // Default implementations for forward and backward that can be
     // applied to most layers, but can be overridden if needed (e.g., for ConvLayer, PoolLayer)
 
-    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> ForwardData {
         let base = self.get_base();
         let z = base.weights.dot(input) + &base.biases;
         let activation = self.activate(&z);
-        LayerData { z, activation }
+        ForwardData { z, activation }
     }
 
-    /// input: a_l-1, output_error: δ_l
-    fn backward(&mut self, input: &Array2<f64>, output_error: &Array2<f64>) -> LayerData {
-        // Maybe we can avoid this recomputation by storing z somewhere in the forward pass?
-        let z = {
-            let base = self.get_base();
-            base.weights.dot(input) + &base.biases
-        };
-
-        let delta = output_error * self.activate_prime(&z);
+    fn backward(
+        &mut self,
+        input: &Array2<f64>, // activation from previous layer
+        output_error: &Array2<f64>, // error signal from next layer
+        z: &Array2<f64>, // pre-activation from forward pass (cached to avoid recomputation)
+    ) -> BackwardData {
+        let delta = output_error * self.activate_prime(z);
 
         let base = self.get_base_mut();
         base.nabla_b += &delta;
         base.nabla_w += &delta.dot(&input.t());
 
         // Propagated error for the previous layer: W_l^T · δ_l
-        let propagated = base.weights.t().dot(&delta);
+        let input_gradient = base.weights.t().dot(&delta);
 
-        LayerData {
-            z,
-            activation: propagated,
-        }
+        BackwardData { input_gradient }
     }
 }

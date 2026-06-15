@@ -100,7 +100,7 @@ impl Layer for MaxPoolLayer {
         Array2::ones(z.dim())
     }
 
-    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> ForwardData {
         let mut output = Array2::<f64>::zeros((self.channels * self.out_h * self.out_w, 1));
 
         for c in 0..self.channels {
@@ -123,15 +123,19 @@ impl Layer for MaxPoolLayer {
             }
         }
 
-        // Store input in z so backward can locate the argmax
-        LayerData {
-            z: input.clone(),
+        ForwardData {
+            // No need to store z - backward will use input parameter directly
+            z: Array2::zeros((0, 0)),
             activation: output,
         }
     }
 
-    /// Todo: we can optimize backward by caching the argmax positions during forward pass
-    fn backward(&mut self, input: &Array2<f64>, output_error: &Array2<f64>) -> LayerData {
+    fn backward(
+        &mut self,
+        input: &Array2<f64>,
+        output_error: &Array2<f64>,
+        _z: &Array2<f64>,
+    ) -> BackwardData {
         let mut input_grad = Array2::<f64>::zeros((self.channels * self.input_h * self.input_w, 1));
 
         for c in 0..self.channels {
@@ -158,10 +162,8 @@ impl Layer for MaxPoolLayer {
             }
         }
 
-        let dummy_z = Array2::<f64>::zeros((self.channels * self.out_h * self.out_w, 1));
-        LayerData {
-            z: dummy_z,
-            activation: input_grad,
+        BackwardData {
+            input_gradient: input_grad,
         }
     }
 }
@@ -209,7 +211,8 @@ mod tests {
             [1.0], [2.0],
             [3.0], [4.0]
         ]; // shape = (4, 1)
-        let input_grad = layer.backward(&input, &output_error).activation;
+        let dummy_z = Array2::zeros((0, 0));
+        let input_grad = layer.backward(&input, &output_error, &dummy_z).input_gradient;
         let expected = array![
             [0.0], [0.0], [0.0], [0.0],
             [0.0], [1.0], [0.0], [2.0],
