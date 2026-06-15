@@ -56,7 +56,7 @@ pub trait Layer {
     // Default implementations for forward and backward that can be
     // applied to most layers, but can be overridden if needed (e.g., for ConvLayer, PoolLayer)
 
-    fn forward(&self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
         let base = self.get_base();
         let z = base.weights.dot(input) + &base.biases;
         let activation = self.activate(&z);

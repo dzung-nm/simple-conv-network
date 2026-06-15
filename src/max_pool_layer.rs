@@ -100,7 +100,7 @@ impl Layer for MaxPoolLayer {
         Array2::ones(z.dim())
     }
 
-    fn forward(&self, input: &Array2<f64>) -> LayerData {
+    fn forward(&mut self, input: &Array2<f64>) -> LayerData {
         let mut output = Array2::<f64>::zeros((self.channels * self.out_h * self.out_w, 1));
 
         for c in 0..self.channels {
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_forward() {
-        let layer = MaxPoolLayer::new(&PoolLayerConfig {
+        let mut layer = MaxPoolLayer::new(&PoolLayerConfig {
             input: (1, 4, 4),
             pool_size: (2, 2),
             stride: 2,

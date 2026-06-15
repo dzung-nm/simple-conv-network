@@ -118,9 +118,9 @@ impl Network {
         self.layers.iter().for_each(|layer| layer.show_me());
     }
 
-    fn feed_forward(&self, x: &Array2<f64>) -> Array2<f64> {
+    fn feed_forward(&mut self, x: &Array2<f64>) -> Array2<f64> {
         let mut activation = x.clone();
-        for layer in &self.layers {
+        for layer in &mut self.layers {
             let data = layer.forward(&activation);
             activation = data.activation;
         }
@@ -227,7 +227,7 @@ impl Network {
         }
     }
 
-    fn evaluate_on_training_data(&self, training_data: &Vec<TrainingItem>) -> usize {
+    fn evaluate_on_training_data(&mut self, training_data: &Vec<TrainingItem>) -> usize {
         training_data
             .iter()
             .map(|item| {
@@ -240,7 +240,7 @@ impl Network {
             .count()
     }
 
-    fn evaluate_on_test_data(&self, test_data: &Vec<TestItem>) -> usize {
+    fn evaluate_on_test_data(&mut self, test_data: &Vec<TestItem>) -> usize {
         test_data
             .iter()
             .map(|item| {
