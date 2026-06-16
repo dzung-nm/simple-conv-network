@@ -26,7 +26,7 @@ fn main() {
 
     let net_options = NetOptions {
         max_epochs: 10,
-        mini_batch_size: 10,
+        mini_batch_size: 20,
         eta: 0.1,
         regularization_l2: 5.0,
         ..NetOptions::default()

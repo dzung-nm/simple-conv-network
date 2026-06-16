@@ -119,9 +119,9 @@ impl Network {
         self.layers.iter().for_each(|layer| layer.show_me());
     }
 
-    fn feed_forward(&mut self, x: &Array2<f64>) -> Array2<f64> {
+    fn feed_forward(&self, x: &Array2<f64>) -> Array2<f64> {
         let mut activation = x.clone();
-        for layer in &mut self.layers {
+        for layer in &self.layers {
             let data = layer.forward(&activation);
             activation = data.activation;
         }
@@ -153,8 +153,7 @@ impl Network {
         // Calculate output error δ for the final layer based on the cost function
         let mut output_error = match self.cost_function {
             CostFunctions::CrossEntropy => {
-                // For cross-entropy cost with softmax, delta is the difference activation - target
-                // This is simplified because softmax derivative cancels out with cross-entropy gradient
+                // delta = output - y
                 &forward_data[n - 1].activation - y
             }
             CostFunctions::Quadratic => {
@@ -188,6 +187,7 @@ impl Network {
         let batch_size = mini_batch.len() as f64;
         let data_size = training_data_size as f64;
 
+        // parallelize backpropagation for each item in the mini-batch
         let gradients: Vec<_> = mini_batch.par_iter()
             .map(|item| self.back_propagate(&item.0, &item.1))
             .collect();
@@ -242,9 +242,9 @@ impl Network {
         }
     }
 
-    fn evaluate_on_training_data(&mut self, training_data: &Vec<TrainingItem>) -> usize {
+    fn evaluate_on_training_data(&self, training_data: &Vec<TrainingItem>) -> usize {
         training_data
-            .iter()
+            .par_iter()
             .map(|item| {
                 let output = self.feed_forward(&item.0);
                 let predicted = get_predicted_label(&output);
@@ -255,9 +255,9 @@ impl Network {
             .count()
     }
 
-    fn evaluate_on_test_data(&mut self, test_data: &Vec<TestItem>) -> usize {
+    fn evaluate_on_test_data(&self, test_data: &Vec<TestItem>) -> usize {
         test_data
-            .iter()
+            .par_iter()
             .map(|item| {
                 let output = self.feed_forward(&item.0);
                 get_predicted_label(&output) == item.1 as usize
