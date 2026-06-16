@@ -1,6 +1,6 @@
 /// Run the LeNet-5 architecture on the MNIST dataset.
 ///     cargo run --release --bin mnist_lenet5
-/// It takes around 4.5s for an epoch on my machine (Mac M2 Air), and achieves
+/// It takes around 4.1s for an epoch on my machine (Mac M2 Air), and achieves
 /// around 99% accuracy after 10 epochs.
 
 use mnist_conv_rust::load_mnist;
