@@ -1,5 +1,6 @@
 use ndarray::Array2;
 use rand::prelude::SliceRandom;
+use rayon::prelude::*;
 use std::time::Instant;
 
 use crate::base_layer::*;
@@ -130,7 +131,7 @@ impl Network {
     /// Returns a vector of (nabla_w, nabla_b) of size equal to the number of layers,
     /// where each element contains the gradients for that layer.
     fn back_propagate(
-        &mut self,
+        &self,
         x: &Array2<f64>,
         y: &Array2<f64>,
     ) -> Vec<(Array2<f64>, Array2<f64>)> {
@@ -187,7 +188,7 @@ impl Network {
         let batch_size = mini_batch.len() as f64;
         let data_size = training_data_size as f64;
 
-        let gradients: Vec<_> = mini_batch.iter()
+        let gradients: Vec<_> = mini_batch.par_iter()
             .map(|item| self.back_propagate(&item.0, &item.1))
             .collect();
 

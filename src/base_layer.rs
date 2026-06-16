@@ -47,7 +47,7 @@ pub struct BaseLayer {
     pub biases: Array2<f64>,
 }
 
-pub trait Layer {
+pub trait Layer: Send + Sync {
     fn get_base(&self) -> &BaseLayer;
     fn get_base_mut(&mut self) -> &mut BaseLayer;
     fn get_name(&self) -> String;
