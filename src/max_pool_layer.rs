@@ -125,8 +125,7 @@ impl Layer for MaxPoolLayer {
             // No need to store z - backward will use input parameter directly
             z: Array2::zeros((0, 0)),
             activation: output,
-            cache: None,
-            dropout_mask: None,
+            ..ForwardData::default()
         }
     }
 
@@ -209,7 +208,7 @@ mod tests {
         ];
         let output_error = array![[1.0], [2.0], [3.0], [4.0]]; // shape = (4, 1)
         let input_grad = layer
-            .backward(&input, &output_error, &ForwardData::dummy())
+            .backward(&input, &output_error, &ForwardData::default())
             .input_gradient;
         let expected = array![
             [0.0], [0.0], [0.0], [0.0],

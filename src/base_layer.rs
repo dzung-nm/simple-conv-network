@@ -24,8 +24,8 @@ pub struct ForwardData {
     pub dropout_mask: Option<Array2<f64>>, // Dropout mask for backward pass
 }
 
-impl ForwardData {
-    pub fn dummy() -> Self {
+impl Default for ForwardData {
+    fn default() -> Self {
         ForwardData {
             z: Array2::zeros((0, 0)),
             activation: Array2::zeros((0, 0)),

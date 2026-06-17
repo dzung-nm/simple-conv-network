@@ -132,7 +132,7 @@ impl Layer for ConvLayer {
                 cols,
                 z_2d,
             }),
-            dropout_mask: None,
+            ..ForwardData::default()
         }
     }
 
@@ -203,6 +203,6 @@ mod tests {
             stride: 1,
             padding: 0,
         });
-        layer.backward(&Array2::zeros((16, 1)), &Array2::zeros((9, 1)), &ForwardData::dummy());
+        layer.backward(&Array2::zeros((16, 1)), &Array2::zeros((9, 1)), &ForwardData::default());
     }
 }

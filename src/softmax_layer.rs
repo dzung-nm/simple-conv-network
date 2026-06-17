@@ -61,8 +61,7 @@ impl Layer for SoftmaxLayer {
         ForwardData {
             z,
             activation,
-            cache: None,
-            dropout_mask: None,
+            ..ForwardData::default()
         }
     }
 

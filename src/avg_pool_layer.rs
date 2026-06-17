@@ -97,10 +97,8 @@ impl Layer for AveragePoolLayer {
         }
 
         ForwardData {
-            z: Array2::zeros((0, 0)),
             activation: output,
-            cache: None,
-            dropout_mask: None,
+            ..ForwardData::default()
         }
     }
 
@@ -171,7 +169,7 @@ mod tests {
             stride: 2,
         });
         let output_error = array![[4.0], [8.0], [12.0], [16.0]]; // shape = (4, 1)
-        let bw = layer.backward(&Array2::zeros((0, 0)), &output_error, &ForwardData::dummy());
+        let bw = layer.backward(&Array2::zeros((0, 0)), &output_error, &ForwardData::default());
         let expected = array![
             [1.0], [1.0], [2.0], [2.0],
             [1.0], [1.0], [2.0], [2.0],
