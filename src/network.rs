@@ -101,6 +101,11 @@ impl Network {
 
         let last_layer = layers.last().unwrap();
 
+        // the last layer should not support dropout, as it is the final layer
+        if last_layer.support_dropout() {
+            panic!("The last layer should not support dropout");
+        }
+
         // cost function depends on the type of the last layer
         let cost_function = match last_layer.get_type() {
             LayerTypes::Softmax => CostFunctions::CrossEntropy,
@@ -404,6 +409,16 @@ mod tests {
         let layers: Vec<Box<dyn Layer>> = vec![
             Box::new(SoftmaxLayer::new(784, 100)),
             Box::new(SigmoidLayer::new(100, 10)),
+        ];
+        Network::new(layers, NetOptions::default());
+    }
+
+    #[test]
+    #[should_panic = "The last layer should not support dropout"]
+    fn test_dropout_not_match() {
+        let layers: Vec<Box<dyn Layer>> = vec![
+            Box::new(SigmoidLayer::new(784, 30)),
+            Box::new(SigmoidLayer::new_with_dropout(30, 10, 0.5)),
         ];
         Network::new(layers, NetOptions::default());
     }

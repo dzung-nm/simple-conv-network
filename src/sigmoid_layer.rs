@@ -46,10 +46,18 @@ impl Layer for SigmoidLayer {
     }
 
     fn get_name(&self) -> String {
-        format!(
-            "SigmoidLayer (Xavier init, dropout={:.2})",
-            self.dropout_rate
-        )
+        if self.dropout_rate > 0.0 {
+            return format!(
+                "SigmoidLayer (Xavier init, dropout={:.2})",
+                self.dropout_rate
+            );
+        };
+
+        "SigmoidLayer (Xavier init, no dropout)".to_string()
+    }
+
+    fn support_dropout(&self) -> bool {
+        self.dropout_rate > 0.0
     }
 
     fn get_type(&self) -> LayerTypes {

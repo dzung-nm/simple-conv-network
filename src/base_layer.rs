@@ -53,6 +53,8 @@ pub trait Layer: Send + Sync {
     fn get_base(&self) -> &BaseLayer;
     fn get_base_mut(&mut self) -> &mut BaseLayer;
     fn get_name(&self) -> String;
+    
+    fn support_dropout(&self) -> bool { false }
 
     fn show_me(&self) {
         println!("Layer: {}", self.get_name());
