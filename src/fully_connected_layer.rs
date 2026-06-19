@@ -152,7 +152,9 @@ mod tests {
 
     #[test]
     fn test_forward_training() {
-        let layer = FullyConnectedLayer::with_dropout(4, 3, ActivationFn::Sigmoid, 0.5);
+        // With 20 output neurons and 50% dropout: P(all drop or all active) ≈ 0.00019%
+        // That means it is rarely failed.
+        let layer = FullyConnectedLayer::with_dropout(4, 20, ActivationFn::Sigmoid, 0.5);
         let input = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
 
         let forward_data = layer.forward(&input, true);
