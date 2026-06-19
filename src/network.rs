@@ -4,15 +4,8 @@ use rayon::prelude::*;
 use std::time::Instant;
 
 use crate::base_layer::*;
-use crate::sigmoid::sigmoid_prime;
 use crate::types::{Dataset, TestItem, TrainingItem};
 use crate::utils::{arr_max, get_predicted_label, slice_max};
-
-#[derive(Debug)]
-pub enum CostFunctions {
-    Quadratic,
-    CrossEntropy,
-}
 
 pub struct NetOptions {
     pub max_epochs: usize,
@@ -67,9 +60,6 @@ pub struct Network {
     pub layers: Vec<Box<dyn Layer>>,
     pub options: NetOptions,
 
-    // cost_function will depend on the type of the last layer
-    cost_function: CostFunctions,
-
     // For tracking accuracy over epochs
     training_accuracies: Vec<f64>,
     validation_accuracies: Vec<f64>,
@@ -115,16 +105,9 @@ impl Network {
             panic!("The last layer should not support dropout");
         }
 
-        // cost function depends on the type of the last layer
-        let cost_function = match last_layer.get_type() {
-            LayerTypes::Softmax => CostFunctions::CrossEntropy,
-            _ => CostFunctions::Quadratic,
-        };
-
         Self {
             layers,
             options,
-            cost_function,
             training_accuracies: Vec::new(),
             validation_accuracies: Vec::new(),
             test_accuracies: Vec::new(),
@@ -174,16 +157,16 @@ impl Network {
             forward_data.push(data);
         }
 
-        // Calculate output error δ for the final layer based on the cost function
-        let mut output_error = match self.cost_function {
-            CostFunctions::CrossEntropy => {
-                // delta = output - y
-                &forward_data[n - 1].activation - y
-            }
-            CostFunctions::Quadratic => {
-                // delta = (output - y) * sigmoidPrime(z)
-                (&forward_data[n - 1].activation - y) * sigmoid_prime(&forward_data[n - 1].z)
-            }
+        let final_layer = &self.layers[n - 1];
+
+        // Calculate output error for the final layer based on the layer type
+        let mut output_error = if final_layer.get_type() == LayerTypes::Softmax {
+            // Cross-entropy loss with softmax: derivative simplifies to (a_L - y)
+            &forward_data[n - 1].activation - y
+        } else {
+            // Quadratic loss: derivative is (a_L - y) * activation_prime(z_L)
+            (&forward_data[n - 1].activation - y)
+                * final_layer.activate_prime(&forward_data[n - 1].z)
         };
 
         let mut results = Vec::with_capacity(n);
