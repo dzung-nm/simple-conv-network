@@ -3,5 +3,7 @@
 .DS_Store
 *.idea
 
-# Ignore all .bin data files
-*.bin
+# Ignore all .bin data files in 'data' directory
+# but allows them in 'data/cifar10' directory (all files there are less than 50MB)
+/data/*.bin
+!/data/cifar10/*.bin
