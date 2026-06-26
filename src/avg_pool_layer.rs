@@ -60,6 +60,20 @@ impl Layer for AveragePoolLayer {
         )
     }
 
+    fn clone_layer(&self) -> Box<dyn Layer> {
+        Box::new(Self {
+            base: self.base.clone(),
+            channels: self.channels,
+            input_h: self.input_h,
+            input_w: self.input_w,
+            pool_h: self.pool_h,
+            pool_w: self.pool_w,
+            stride: self.stride,
+            out_h: self.out_h,
+            out_w: self.out_w,
+        })
+    }
+
     fn get_type(&self) -> LayerTypes {
         LayerTypes::AveragePool
     }

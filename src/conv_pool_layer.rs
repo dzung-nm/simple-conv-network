@@ -103,6 +103,27 @@ impl Layer for ConvPoolLayer {
         )
     }
 
+    fn clone_layer(&self) -> Box<dyn Layer> {
+        Box::new(Self {
+            base: self.base.clone(),
+            in_channels: self.in_channels,
+            num_filters: self.num_filters,
+            kernel_h: self.kernel_h,
+            kernel_w: self.kernel_w,
+            input_h: self.input_h,
+            input_w: self.input_w,
+            conv_out_h: self.conv_out_h,
+            conv_out_w: self.conv_out_w,
+            out_h: self.out_h,
+            out_w: self.out_w,
+            stride: self.stride,
+            padding: self.padding,
+            pool_h: self.pool_h,
+            pool_w: self.pool_w,
+            pool_stride: self.pool_stride,
+        })
+    }
+
     fn get_type(&self) -> LayerTypes {
         LayerTypes::ConvPool
     }

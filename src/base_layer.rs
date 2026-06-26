@@ -1,6 +1,6 @@
 use ndarray::{Array2, Array3};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ActivationFn {
     Sigmoid,
     ReLU,
@@ -61,10 +61,22 @@ pub struct BaseLayer {
     pub biases: Array2<f64>,
 }
 
+impl Clone for BaseLayer {
+    fn clone(&self) -> Self {
+        BaseLayer {
+            input_size: self.input_size,
+            output_size: self.output_size,
+            weights: self.weights.clone(),
+            biases: self.biases.clone(),
+        }
+    }
+}
+
 pub trait Layer: Send + Sync {
     fn get_base(&self) -> &BaseLayer;
     fn get_base_mut(&mut self) -> &mut BaseLayer;
     fn get_name(&self) -> String;
+    fn clone_layer(&self) -> Box<dyn Layer>;
     
     fn support_dropout(&self) -> bool { false }
 

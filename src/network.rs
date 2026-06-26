@@ -7,6 +7,12 @@ use crate::base_layer::*;
 use crate::types::{Dataset, TestItem, TrainingItem};
 use crate::utils::{arr_max, get_predicted_label, slice_max};
 
+struct NetworkSnapshot {
+    layers: Vec<Box<dyn Layer>>,
+    // You can add more fields here if you want to save additional state
+    // Also can serialize the snapshot to disk if needed for long training sessions.
+}
+
 pub struct NetOptions {
     pub max_epochs: usize,
     pub mini_batch_size: usize,
@@ -67,6 +73,9 @@ pub struct Network {
 
     // Logging level (minimal or detailed)
     log_type: LogType,
+
+    // Save the best model checkpoint based on validation accuracy
+    checkpoint: Option<NetworkSnapshot>,
 }
 
 impl Network {
@@ -112,6 +121,7 @@ impl Network {
             validation_accuracies: Vec::new(),
             test_accuracies: Vec::new(),
             log_type: LogType::Minimal,
+            checkpoint: None,
         }
     }
 
@@ -324,6 +334,11 @@ impl Network {
                 validation_label
             );
         }
+
+        // Save a checkpoint if a new record of validation accuracy is achieved
+        if is_new_record {
+            self.save_checkpoint();
+        }
     }
 
     fn should_stop_early(&self, accuracies: &Vec<f64>, patience: usize, min_delta: f64) -> bool {
@@ -344,6 +359,18 @@ impl Network {
         }
 
         false
+    }
+
+    fn save_checkpoint(&mut self) {
+        self.checkpoint = Some(NetworkSnapshot {
+            layers: self.layers.iter().map(|l| l.clone_layer()).collect::<Vec<_>>(),
+        });
+    }
+
+    fn restore_checkpoint(&mut self) {
+        if let Some(snapshot) = &self.checkpoint {
+            self.layers = snapshot.layers.iter().map(|l| l.clone_layer()).collect::<Vec<_>>();
+        }
     }
 
     pub fn sdg(&mut self, data: &Dataset) {
@@ -388,6 +415,9 @@ impl Network {
                 break;
             }
         }
+
+        // Restore the best checkpoint (if any)
+        self.restore_checkpoint();
     }
 }
 

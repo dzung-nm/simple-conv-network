@@ -39,6 +39,12 @@ impl Layer for SoftmaxLayer {
         "SoftmaxLayer (Xavier init)".to_string()
     }
 
+    fn clone_layer(&self) -> Box<dyn Layer> {
+        Box::new(Self {
+            base: self.base.clone(),
+        })
+    }
+
     fn get_type(&self) -> LayerTypes {
         LayerTypes::Softmax
     }

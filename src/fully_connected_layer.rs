@@ -74,6 +74,14 @@ impl Layer for FullyConnectedLayer {
         )
     }
 
+    fn clone_layer(&self) -> Box<dyn Layer> {
+        Box::new(Self {
+            base: self.base.clone(),
+            dropout_rate: self.dropout_rate,
+            activation_fn: self.activation_fn.clone(),
+        })
+    }
+
     fn support_dropout(&self) -> bool {
         self.dropout_rate > 0.0
     }
