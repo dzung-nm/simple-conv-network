@@ -78,6 +78,9 @@ pub struct Network {
 
     // Save the best model checkpoint based on validation accuracy
     checkpoint: Option<NetworkSnapshot>,
+
+    // Pause a short time between epochs, default to 0
+    pause_duration: std::time::Duration,
 }
 
 impl Network {
@@ -124,7 +127,15 @@ impl Network {
             test_accuracies: Vec::new(),
             log_type: LogType::Minimal,
             checkpoint: None,
+            pause_duration: std::time::Duration::from_secs(0),
         }
+    }
+
+    /// Set the pause duration between epochs in seconds. This is useful to avoid
+    /// overheating the CPU during long training sessions, especially on laptops
+    /// or systems without active cooling.
+    pub fn set_pause_duration(&mut self, seconds: f64) {
+        self.pause_duration = std::time::Duration::from_secs_f64(seconds);
     }
 
     pub fn log_more(&mut self) {
@@ -423,6 +434,10 @@ impl Network {
                 )
             {
                 break;
+            }
+
+            if self.pause_duration > std::time::Duration::from_secs(0) {
+                std::thread::sleep(self.pause_duration);
             }
         }
     }
