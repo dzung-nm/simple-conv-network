@@ -7,7 +7,7 @@ use simple_conv_network::load_mnist;
 use simple_conv_network::lenet5::lenet5;
 
 fn main() {
-    let mnist_data = load_mnist().expect("Failed to load MNIST dataset");
+    let mnist_data = load_mnist(50000).expect("Failed to load MNIST dataset");
     println!(
         "Training data size: {} samples, {} validation samples, {} test samples",
         mnist_data.training.len(),

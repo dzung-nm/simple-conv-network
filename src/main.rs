@@ -3,19 +3,9 @@ use simple_conv_network::conv_pool_layer::*;
 use simple_conv_network::network::*;
 use simple_conv_network::fully_connected_layer::FullyConnectedLayer;
 use simple_conv_network::softmax_layer::SoftmaxLayer;
-use simple_conv_network::types::Dataset;
 
 fn main() {
-    let mnist_data = load_mnist().expect("Failed to load MNIST dataset");
-
-    let size = 50000; // Test with a smaller subset of the data for faster training
-    let data = Dataset {
-        training: mnist_data.training.into_iter().take(size).collect(),
-        test: mnist_data.test,
-        validation: mnist_data.validation,
-        dataset_type: mnist_data.dataset_type,
-        labels: mnist_data.labels,
-    };
+    let data = load_mnist(50000).expect("Failed to load MNIST dataset");
 
     println!(
         "Training data size: {} samples, {} validation samples, {} test samples",
