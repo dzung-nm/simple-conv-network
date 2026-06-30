@@ -13,13 +13,6 @@ use simple_conv_network::softmax_layer::SoftmaxLayer;
 fn main() {
     let data = load_cifar10(20000).expect("Failed to load CIFAR-10 dataset");
 
-    println!(
-        "Training data size: {} samples, {} validation samples, {} test samples",
-        data.training.len(),
-        data.test.len(),
-        data.validation.len()
-    );
-
     let conv_layer_config1 = ConvLayerConfig {
         input: (3, 32, 32),
         kernel_size: (5, 5),

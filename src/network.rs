@@ -402,6 +402,13 @@ impl Network {
     }
 
     pub fn sdg(&mut self, data: &Dataset) {
+        println!(
+            " > Dataset's size: {} original samples, {} validation samples, {} test samples",
+            data.training.len(),
+            data.test.len(),
+            data.validation.len()
+        );
+        
         let options = &self.options;
         let max_epochs = options.max_epochs;
         let mini_batch_size = options.mini_batch_size;

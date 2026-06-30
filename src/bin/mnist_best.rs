@@ -1,5 +1,5 @@
 //
-// With these settings, it can reach out ~ 99.45% accuracy at the epoch 7
+// With these settings, it can reach out ~ 99.45% accuracy at the epoch 7 ~ 20
 // Currently this is the best result I can achieve with this library.
 //
 // Epoch 001: time = 14.219s, Validation Accuracy: 98.53%
@@ -19,12 +19,6 @@ use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
     let mnist_data = load_mnist(50000).expect("Failed to load MNIST dataset");
-    println!(
-        "Training data size: {} samples, {} validation samples, {} test samples",
-        mnist_data.training.len(),
-        mnist_data.test.len(),
-        mnist_data.validation.len()
-    );
 
     let cpl1 = ConvPoolLayerConfig {
         input: (1, 28, 28),

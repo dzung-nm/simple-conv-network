@@ -27,12 +27,6 @@ use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
     let mnist_data = load_mnist(50000).expect("Failed to load MNIST dataset");
-    println!(
-        "Training data size: {} samples, {} validation samples, {} test samples",
-        mnist_data.training.len(),
-        mnist_data.test.len(),
-        mnist_data.validation.len()
-    );
 
     let cpl1 = ConvPoolLayerConfig {
         input: (1, 28, 28),
