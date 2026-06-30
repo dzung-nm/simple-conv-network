@@ -12,7 +12,7 @@ pub fn new_augmented_data(origin: &[TrainingItem], multiplier: usize) -> Vec<Tra
     if multiplier < 1 || multiplier > 3 {
         panic!("Augmented Multiplier must be between 1 and 3, but got {}", multiplier);
     }
-    
+
     let mut augmented_data = Vec::with_capacity(origin.len() * multiplier);
     let mut rng = rand::rng();
 
@@ -21,30 +21,18 @@ pub fn new_augmented_data(origin: &[TrainingItem], multiplier: usize) -> Vec<Tra
             let image_flat = item.0.clone().into_flat().to_vec();
             let image_3d = Array3::from_shape_vec((1, 28, 28), image_flat).unwrap();
 
-            let new_item = match rng.random_range(0..3) {
-                0 => {
-                    // Add horizontal flip
-                    let flipped_image_3d = h_flip(&image_3d);
-                    let flipped_image = Array2::from_shape_vec(
-                        (784, 1),
-                        flipped_image_3d.into_flat().to_vec()
-                    ).unwrap();
-                    TrainingItem(flipped_image, item.1.clone())
-                },
-                1 => {
-                    // Add random crop
-                    let cropped_image_3d = rand_crop(&image_3d, 2);
-                    let cropped_image = Array2::from_shape_vec(
-                        (784, 1),
-                        cropped_image_3d.into_flat().to_vec()
-                    ).unwrap();
-                    TrainingItem(cropped_image, item.1.clone())
-                },
-                2 => TrainingItem(item.0.clone(), item.1.clone()),
-                _ => unreachable!(),
-            };
+            if rng.random_bool(0.5) {
+                // Add random crop
+                let cropped_image_3d = rand_crop(&image_3d, 2);
+                let cropped_image = Array2::from_shape_vec(
+                    (784, 1),
+                    cropped_image_3d.into_flat().to_vec()
+                ).unwrap();
+                augmented_data.push(TrainingItem(cropped_image, item.1.clone()));
+                continue;
+            }
 
-            augmented_data.push(new_item);
+            augmented_data.push(TrainingItem(item.0.clone(), item.1.clone()));
         }
     }
 
