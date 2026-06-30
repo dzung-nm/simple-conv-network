@@ -1,17 +1,18 @@
 /// This is a neural network implementation for the CIFAR-10 dataset using a simple
 /// convolutional network architecture.
-///     cargo run --release --bin cifar10
+///     cargo run --release --bin cifar10_best
+/// Currently it can archive 68.82% accuracy after 70 epochs
+/// Epoch 070: time = 11.704s, Validation Accuracy: 68.82%
 
 use simple_conv_network::conv_layer::{ConvLayer, ConvLayerConfig};
 use simple_conv_network::{load_cifar10, Layer, ActivationFn};
-use simple_conv_network::avg_pool_layer::AveragePoolLayer;
 use simple_conv_network::fully_connected_layer::FullyConnectedLayer;
-use simple_conv_network::max_pool_layer::PoolLayerConfig;
+use simple_conv_network::max_pool_layer::*;
 use simple_conv_network::network::{NetOptions, Network};
 use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
-    let data = load_cifar10(20000).expect("Failed to load CIFAR-10 dataset");
+    let data = load_cifar10(50000).expect("Failed to load CIFAR-10 dataset");
 
     let conv_layer_config1 = ConvLayerConfig {
         input: (3, 32, 32),
@@ -41,11 +42,11 @@ fn main() {
 
     let layers: Vec<Box<dyn Layer>> = vec![
         Box::new(ConvLayer::new(&conv_layer_config1)), // → 6×28×28
-        Box::new(AveragePoolLayer::new(&pool_layer_config1)), // → 6×14×14
+        Box::new(MaxPoolLayer::new(&pool_layer_config1)), // → 6×14×14
         Box::new(ConvLayer::new(&conv_layer_config2)), // → 16×10×10
-        Box::new(AveragePoolLayer::new(&pool_layer_config2)), // → 16×5×5
+        Box::new(MaxPoolLayer::new(&pool_layer_config2)), // → 16×5×5
         Box::new(FullyConnectedLayer::with_dropout(16 * 5 * 5, 120, ActivationFn::ReLU, 0.5)),
-        Box::new(FullyConnectedLayer::new(120, 84)),
+        Box::new(FullyConnectedLayer::with_activation(120, 84, ActivationFn::ReLU)),
         Box::new(SoftmaxLayer::new(84, 10)),
     ];
 
@@ -56,15 +57,15 @@ fn main() {
             mini_batch_size: 20,
             eta: 0.01,
             regularization_l2: 0.1,
-            augment_enable: true,  // Enable on-the-fly augmentation
-            augment_multiplier: 3,
+            augment_enable: true,
+            augment_multiplier: 2,
             ..NetOptions::default()
         },
     );
 
     // network.log_more();
 
-    network.set_pause_duration(2.0);
+    network.set_pause_duration(3.0);
 
     println!("===============================");
     network.show_me();
