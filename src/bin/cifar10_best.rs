@@ -1,8 +1,8 @@
 /// This is a neural network implementation for the CIFAR-10 dataset using a simple
 /// convolutional network architecture.
 ///     cargo run --release --bin cifar10_best
-/// Currently it can archive 68.82% accuracy after 70 epochs
-/// Epoch 070: time = 11.704s, Validation Accuracy: 68.82%
+/// Currently it can archive 66.72% accuracy with only 20.000 original samples
+/// Epoch 022: time = 15.912s, Validation Accuracy: 66.72%
 
 use simple_conv_network::conv_layer::{ConvLayer, ConvLayerConfig};
 use simple_conv_network::{load_cifar10, Layer, ActivationFn};
@@ -12,42 +12,56 @@ use simple_conv_network::network::{NetOptions, Network};
 use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
-    let data = load_cifar10(50000).expect("Failed to load CIFAR-10 dataset");
+    let data = load_cifar10(20000).expect("Failed to load CIFAR-10 dataset");
 
     let conv_layer_config1 = ConvLayerConfig {
         input: (3, 32, 32),
         kernel_size: (5, 5),
-        num_filters: 6,
+        num_filters: 16,
         stride: 1,
-        padding: 0,
+        padding: 2,
     };
     let pool_layer_config1 = PoolLayerConfig {
-        input: (6, 28, 28),
+        input: (16, 32, 32),
         pool_size: (2, 2),
         stride: 2,
     };
 
     let conv_layer_config2 = ConvLayerConfig {
-        input: (6, 14, 14),
+        input: (16, 16, 16),
         kernel_size: (5, 5),
-        num_filters: 16,
+        num_filters: 20,
         stride: 1,
-        padding: 0,
+        padding: 2,
     };
     let pool_layer_config2 = PoolLayerConfig {
-        input: (16, 10, 10),
+        input: (20, 16, 16),
+        pool_size: (2, 2),
+        stride: 2,
+    };
+
+    let conv_layer_config3 = ConvLayerConfig {
+        input: (20, 8, 8),
+        kernel_size: (5, 5),
+        num_filters: 20,
+        stride: 1,
+        padding: 2,
+    };
+    let pool_layer_config3 = PoolLayerConfig {
+        input: (20, 8, 8),
         pool_size: (2, 2),
         stride: 2,
     };
 
     let layers: Vec<Box<dyn Layer>> = vec![
-        Box::new(ConvLayer::new(&conv_layer_config1)), // → 6×28×28
-        Box::new(MaxPoolLayer::new(&pool_layer_config1)), // → 6×14×14
-        Box::new(ConvLayer::new(&conv_layer_config2)), // → 16×10×10
-        Box::new(MaxPoolLayer::new(&pool_layer_config2)), // → 16×5×5
-        Box::new(FullyConnectedLayer::with_dropout(16 * 5 * 5, 120, ActivationFn::ReLU, 0.5)),
-        Box::new(FullyConnectedLayer::with_activation(120, 84, ActivationFn::ReLU)),
-        Box::new(SoftmaxLayer::new(84, 10)),
+        Box::new(ConvLayer::new(&conv_layer_config1)), // → 16×32×32
+        Box::new(MaxPoolLayer::new(&pool_layer_config1)), // → 16×16×16
+        Box::new(ConvLayer::new(&conv_layer_config2)), // → 20×16×16
+        Box::new(MaxPoolLayer::new(&pool_layer_config2)), // → 20×8×8
+        Box::new(ConvLayer::new(&conv_layer_config3)), // → 20×8×8
+        Box::new(MaxPoolLayer::new(&pool_layer_config3)), // → 20×4×4
+        Box::new(FullyConnectedLayer::with_dropout(20 * 4 * 4, 10, ActivationFn::ReLU, 0.0)), // no dropout
+        Box::new(SoftmaxLayer::new(10, 10)),
     ];
 
     let mut network = Network::new(
@@ -56,16 +70,16 @@ fn main() {
             max_epochs: 70,
             mini_batch_size: 20,
             eta: 0.01,
-            regularization_l2: 0.1,
+            regularization_l2: 0.0001,
             augment_enable: true,
-            augment_multiplier: 2,
+            augment_multiplier: 3,
             ..NetOptions::default()
         },
     );
 
     // network.log_more();
 
-    network.set_pause_duration(3.0);
+    network.set_pause_duration(2.0);
 
     println!("===============================");
     network.show_me();
