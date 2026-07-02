@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 extern crate blas_src;
 
 pub mod network;
