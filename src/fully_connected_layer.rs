@@ -1,8 +1,8 @@
-use ndarray::Array2;
 use crate::base_layer::*;
 use crate::box_muller::box_muller_random;
 use crate::relu::*;
 use crate::sigmoid::*;
+use ndarray::Array2;
 
 pub struct FullyConnectedLayer {
     base: BaseLayer,
@@ -19,13 +19,11 @@ impl FullyConnectedLayer {
     ) -> Self {
         // Use appropriate initialization based on activation function
         let std = match activation_fn {
-            ActivationFn::ReLU => (2.0 / n_in as f64).sqrt(),      // He initialization for ReLU
-            ActivationFn::Sigmoid => (1.0 / n_in as f64).sqrt(),   // Xavier initialization for Sigmoid
+            ActivationFn::ReLU => (2.0 / n_in as f64).sqrt(), // He initialization for ReLU
+            ActivationFn::Sigmoid => (1.0 / n_in as f64).sqrt(), // Xavier initialization for Sigmoid
         };
 
-        let weights = Array2::from_shape_fn((n_out, n_in), |_| {
-            box_muller_random() * std
-        });
+        let weights = Array2::from_shape_fn((n_out, n_in), |_| box_muller_random() * std);
         let biases = Array2::from_shape_fn((n_out, 1), |_| box_muller_random());
 
         FullyConnectedLayer {
@@ -69,8 +67,12 @@ impl Layer for FullyConnectedLayer {
             ActivationFn::Sigmoid => "Xavier init",
         };
         format!(
-            "FullyConnectedLayer ({}, {}, activation={:?})",
-            init_label, dropout_label, self.activation_fn
+            "FullyConnectedLayer ({}, {}, activation={:?}, in/out={}/{})",
+            init_label,
+            dropout_label,
+            self.activation_fn,
+            self.base.input_size,
+            self.base.output_size
         )
     }
 

@@ -60,7 +60,6 @@ fn main() {
             mini_batch_size: 10,
             eta: 0.03,
             regularization_l2: 0.1,
-            stop_early: false,
             ..NetOptions::default()
         },
     );

@@ -36,7 +36,10 @@ impl Layer for SoftmaxLayer {
     }
 
     fn get_name(&self) -> String {
-        "SoftmaxLayer (Xavier init)".to_string()
+        format!(
+            "SoftmaxLayer (Xavier init, in/out={}/{})",
+            self.base.input_size, self.base.output_size
+        )
     }
 
     fn clone_layer(&self) -> Box<dyn Layer> {

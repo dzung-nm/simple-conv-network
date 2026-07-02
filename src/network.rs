@@ -30,22 +30,42 @@ pub struct NetOptions {
 }
 
 impl NetOptions {
+    #[rustfmt::skip]
     pub(crate) fn display(&self) -> String {
-        format!(
-            "{{ max_epochs: {}, mini_batch_size: {}, eta: {}, regularization_l1: {:?}, \
-            regularization_l2: {:?}, stop_early: {}, stop_early_patience: {}, stop_early_min_delta: {}, \
-            enable_augmentation: {}, augment_multiplier: {} }}",
-            self.max_epochs,
-            self.mini_batch_size,
-            self.eta,
-            self.regularization_l1,
-            self.regularization_l2,
-            self.stop_early,
-            self.stop_early_patience,
-            self.stop_early_min_delta,
-            self.augment_enable,
-            self.augment_multiplier
-        )
+        let r_l1 = self.regularization_l1;
+        let r_l2 = self.regularization_l2;
+        let num_spe = self.num_samples_per_epoch;
+
+        let labels: Vec<String> = vec![
+            format!("max_epochs: {}", self.max_epochs),
+            format!("mini_batch_size: {}", self.mini_batch_size),
+            format!("eta: {}", self.eta),
+            if r_l1 > 0.0 { format!("regularization_l1: {}", r_l1) } else { String::new() },
+            if r_l2 > 0.0 { format!("regularization_l2: {}", r_l2) } else { String::new() },
+            if num_spe > 0 { format!("num_samples_per_epoch: {}", num_spe) } else { String::new() },
+            if self.stop_early {
+                format!(
+                    "stop_early: {}, stop_early_patience: {}, stop_early_min_delta: {}",
+                    self.stop_early, self.stop_early_patience, self.stop_early_min_delta
+                )
+            } else {
+                String::new()
+            },
+            if self.augment_enable {
+                format!(
+                    "augment_enable: {:?}, augment_multiplier: {}",
+                    self.augment_enable, self.augment_multiplier
+                )
+            } else {
+                String::new()
+            },
+        ];
+
+        let labels_all = String::from(
+            labels.iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<String>>().join(", ")
+        );
+
+        format!("{{ {} }}", labels_all)
     }
 }
 
@@ -57,7 +77,7 @@ impl Default for NetOptions {
             eta: 0.1,
             regularization_l1: 0.0,
             regularization_l2: 0.0,
-            stop_early: true,
+            stop_early: false,
             stop_early_patience: 20,
             stop_early_min_delta: 0.1,
             augment_enable: false,
