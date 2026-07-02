@@ -90,13 +90,7 @@ fn one_hot_label(label: u8) -> Array2<f64> {
     one_hot
 }
 
-/// Load mnist data.
-///
-/// # Augments
-/// * `max_training_item` - valid range is 10000 to 50000.
-pub fn load_mnist(max_training_item: usize) -> std::io::Result<Dataset> {
-    let num_training_items = max_training_item.clamp(10000, 50000);
-
+pub fn load_mnist() -> std::io::Result<Dataset> {
     let data_files = [
         format!("{}/train-images.bin", DATA_DIR),
         format!("{}/train-labels.bin", DATA_DIR),
@@ -121,7 +115,6 @@ pub fn load_mnist(max_training_item: usize) -> std::io::Result<Dataset> {
         .images
         .outer_iter()
         .zip(training.labels.iter())
-        .take(num_training_items)
         .map(|(img_row, &label)| {
             let img_col = Array2::from_shape_vec((784, 1), img_row.to_vec()).unwrap();
             TrainingItem(img_col, one_hot_label(label))
@@ -165,8 +158,8 @@ mod tests {
 
     #[test]
     fn test_load_mnist() {
-        let data = load_mnist(10000).unwrap();
-        assert_eq!(data.training.len(), 10000);
+        let data = load_mnist().unwrap();
+        assert_eq!(data.training.len(), 50000);
         assert_eq!(data.validation.len(), 10000);
         assert_eq!(data.test.len(), 10000);
         let first_training = data.training.first().unwrap();

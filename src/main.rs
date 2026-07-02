@@ -5,7 +5,7 @@ use simple_conv_network::fully_connected_layer::FullyConnectedLayer;
 use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
-    let data = load_mnist(50000).expect("Failed to load MNIST dataset");
+    let data = load_mnist().expect("Failed to load MNIST dataset");
 
     let cpl1 = ConvPoolLayerConfig {
         input: (1, 28, 28),

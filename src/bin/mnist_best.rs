@@ -18,7 +18,7 @@ use simple_conv_network::fully_connected_layer::*;
 use simple_conv_network::softmax_layer::SoftmaxLayer;
 
 fn main() {
-    let mnist_data = load_mnist(50000).expect("Failed to load MNIST dataset");
+    let mnist_data = load_mnist().expect("Failed to load MNIST dataset");
 
     let cpl1 = ConvPoolLayerConfig {
         input: (1, 28, 28),
@@ -58,6 +58,8 @@ fn main() {
         },
     );
 
+    // My M2 Air machine doesn't have any fan, so setting a pause duration
+    // to avoid overheating the machine.
     network.set_pause_duration(3.0);
 
     println!("===============================");

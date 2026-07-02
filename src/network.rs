@@ -26,6 +26,7 @@ pub struct NetOptions {
     pub stop_early_min_delta: f64,
     pub augment_enable: bool,
     pub augment_multiplier: usize, // Number of augmented samples per original sample
+    pub num_samples_per_epoch: usize, // Number of original samples to train in each epoch
 }
 
 impl NetOptions {
@@ -61,6 +62,7 @@ impl Default for NetOptions {
             stop_early_min_delta: 0.1,
             augment_enable: false,
             augment_multiplier: 2,
+            num_samples_per_epoch: 0, // 0 means to get all available samples
         }
     }
 }
@@ -153,7 +155,7 @@ impl Network {
         println!("Network with {}", self.options.display());
         if self.log_type == LogType::Minimal {
             self.layers.iter().for_each(|l| {
-                println!(" > Layer: {}", l.get_name());
+                println!("Layer: {}", l.get_name());
             });
         } else {
             self.layers.iter().for_each(|layer| layer.show_me());
@@ -216,7 +218,7 @@ impl Network {
         results
     }
 
-    fn update_mini_batch(&mut self, mini_batch: Vec<&TrainingItem>, training_data_size: usize) {
+    fn update_mini_batch(&mut self, mini_batch: &[&TrainingItem], training_data_size: usize) {
         let eta = self.options.eta;
         let r_l1 = self.options.regularization_l1;
         let r_l2 = self.options.regularization_l2;
@@ -402,13 +404,6 @@ impl Network {
     }
 
     pub fn sdg(&mut self, data: &Dataset) {
-        println!(
-            " > Dataset's size: {} original samples, {} validation samples, {} test samples",
-            data.training.len(),
-            data.test.len(),
-            data.validation.len()
-        );
-        
         let options = &self.options;
         let max_epochs = options.max_epochs;
         let mini_batch_size = options.mini_batch_size;
@@ -418,61 +413,91 @@ impl Network {
         let augment_enable = options.augment_enable;
         let augment_multiplier = options.augment_multiplier;
 
+        // num_samples_per_epoch must be greater than 1000 and less than the size of
+        // the training data, otherwise use the size of the training data
+        let num_samples_per_epoch = if options.num_samples_per_epoch < 1000
+            || options.num_samples_per_epoch > data.training.len()
+        {
+            data.training.len()
+        } else {
+            options.num_samples_per_epoch
+        };
+
         if augment_enable && data.new_augmented_data.is_none() {
-            panic!("Data augmentation is enabled, but no augmentation function is provided. \
-            Please provide a function to generate augmented data.");
+            panic!(
+                "Data augmentation is enabled, but no augmentation function is provided. \
+            Please provide a function to generate augmented data."
+            );
+        }
+
+        println!(
+            " > Dataset loaded: {} training samples, {} test samples, {} validation samples",
+            data.training.len(),
+            data.test.len(),
+            data.validation.len()
+        );
+
+        if augment_enable {
+            println!(
+                " > It gets randomly {} samples from the original data then create {} augmented samples for each epoch",
+                num_samples_per_epoch,
+                num_samples_per_epoch * augment_multiplier
+            );
+        } else {
+            println!(
+                " > Training without data augmentation ({} original training samples)",
+                num_samples_per_epoch
+            );
+        }
+
+        if self.pause_duration > std::time::Duration::from_secs(0) {
+            println!(
+                " > It will pause for {:.2} seconds between epochs to avoid overheating the CPU.",
+                self.pause_duration.as_secs_f64()
+            );
         }
 
         self.training_accuracies.clear();
         self.validation_accuracies.clear();
         self.test_accuracies.clear();
 
-        let original_training_data = &data.training;
-
-        if augment_enable {
-            println!(
-                " > Training with on-the-fly data augmentation enabled ({}x multiplier = {} samples)",
-                augment_multiplier,
-                original_training_data.len() * augment_multiplier
-            );
-        } else {
-            println!(
-                " > Training without data augmentation ({} original training samples)",
-                original_training_data.len()
-            );
-        }
-
-        if self.pause_duration > std::time::Duration::from_secs(0) {
-            println!(
-                " > It'll pause for {:.2} seconds between epochs to avoid overheating the CPU.",
-                self.pause_duration.as_secs_f64()
-            );
-        }
+        let mut rng = rand::rng();
+        let mut indices: Vec<usize> = (0..data.training.len()).collect();
 
         for epoch in 0..max_epochs {
             let start = Instant::now();
 
+            indices.shuffle(&mut rng);
+
+            // Determine the original training data to use for this epoch based on
+            // num_samples_per_epoch. Even you only use a part of the original training
+            // data, it will be still extracted and shuffled (randomly) for each epoch, and
+            // then augmented if augmentation is enabled.
+            let original_training_data = indices
+                .iter()
+                .take(num_samples_per_epoch)
+                .map(|&i| &data.training[i])
+                .collect::<Vec<_>>();
+
+            // Augment the original training data if augmentation is enabled
             let temp: Vec<TrainingItem>;
-            let training_data = if augment_enable && data.new_augmented_data.is_some() {
-                let fn_create_augmented_data = data.new_augmented_data.unwrap();
-                let augmented_refs: Vec<&TrainingItem> = original_training_data.iter().collect();
-                temp = fn_create_augmented_data(augmented_refs, augment_multiplier);
-                &temp
-            } else {
-                original_training_data
-            };
+            let training_data: Vec<&TrainingItem> =
+                if augment_enable && data.new_augmented_data.is_some() {
+                    let fn_create_augmented_data = data.new_augmented_data.unwrap();
+                    temp = fn_create_augmented_data(original_training_data, augment_multiplier);
+                    temp.iter().collect::<Vec<_>>()
+                } else {
+                    original_training_data
+                };
 
             let training_data_size = training_data.len();
-            let mut indices: Vec<usize> = (0..training_data_size).collect();
 
-            indices.shuffle(&mut rand::rng());
-            indices.chunks(mini_batch_size).for_each(|batch_indices| {
-                let mini_batch = batch_indices
-                    .iter()
-                    .map(|&i| &training_data[i])
-                    .collect::<Vec<_>>();
-                self.update_mini_batch(mini_batch, training_data_size);
-            });
+            // Now perform the mini-batch updates in parallel using Rayon
+            training_data
+                .chunks(mini_batch_size)
+                .for_each(|mini_batch| {
+                    self.update_mini_batch(mini_batch, training_data_size);
+                });
 
             let time_taken = start.elapsed();
             self.log(epoch, time_taken.as_secs_f64(), data);

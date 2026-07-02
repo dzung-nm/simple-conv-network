@@ -35,15 +35,9 @@ fn one_hot_label(label: u8) -> Array2<f64> {
 //
 
 /// Load CIFAR-10 data.
-///
-/// # Augments
-/// * `max_training_item` - valid range is 10000 to 50000.
-pub fn load_cifar10(max_training_item: usize) -> std::io::Result<Dataset> {
-    let num_training_items = max_training_item.clamp(10000, 50000);
-    let num_batches = (num_training_items - 1) / 10000 + 1;
-
+pub fn load_cifar10() -> std::io::Result<Dataset> {
     // Load training data from data_batch_1.bin to data_batch_5.bin
-    let training_data: Vec<TrainingItem> = (1..=num_batches)
+    let training_data: Vec<TrainingItem> = (1..=5)
         .map(|i| format!("{}/data_batch_{}.bin", DATA_DIR, i))
         .map(|file_path| {
             let mut file = File::open(file_path).unwrap();
@@ -63,7 +57,6 @@ pub fn load_cifar10(max_training_item: usize) -> std::io::Result<Dataset> {
                 .collect::<Vec<_>>()
         })
         .flatten()
-        .take(num_training_items)
         .collect::<Vec<_>>();
 
     // Load test data and validation data from test_batch.bin
@@ -131,13 +124,13 @@ mod tests {
     #[test]
     fn test_load_cifar10() {
         let start = Instant::now();
-        let data = load_cifar10(25000).unwrap();
+        let data = load_cifar10().unwrap();
         let duration = start.elapsed();
 
         println!("  Time: {:.3}ms", duration.as_secs_f64() * 1000.0);
 
         // Validate lengths of training, validation, and test datasets
-        assert_eq!(data.training.len(), 25000);
+        assert_eq!(data.training.len(), 50000);
         assert_eq!(data.validation.len(), 5000);
         assert_eq!(data.test.len(), 5000);
 
